@@ -1,0 +1,115 @@
+Veil: A Secure, Decentralized Encrypted Chat Application
+Introduction
+Veil is envisioned as a modern, secure messaging application that prioritizes user privacy and data protection without sacrificing usability. Inspired by popular applications like Signal, Telegram, and WhatsApp—but designed with a fundamentally different architecture—Veil leverages decentralized elements and blockchain-derived randomness to generate ephemeral encryption keys for every message. This ensures that only the sender and the recipient can read the content while protecting users against unauthorized access from governments, hackers, or any third-party intermediaries.
+
+Background Research
+Evolution of Online Messaging
+Early Chat Applications:
+Early platforms like AOL Instant Messenger and IRC enabled real-time conversations but lacked robust security measures.
+Rise of Modern Messengers:
+Later applications such as MSN Messenger introduced additional features like file sharing; however, security was still minimal. In today’s digital landscape, messaging apps such as WhatsApp, Telegram, and Signal dominate—with varying degrees of encryption and privacy features.
+Security Concerns and Industry Trends
+Privacy Risks:
+Large-scale surveillance and unauthorized data access have raised widespread concerns about privacy. Even with end-to-end encryption (E2EE), metadata (such as timestamps and contact information) collected by centralized platforms can compromise user privacy.
+Security vs. Usability Trade-Off:
+Many mainstream apps focus on ease of use, sometimes at the expense of robust security features. Veil is designed to be both highly secure and extremely user-friendly.
+Literature Review and Academic Perspectives
+Signal Protocol:
+Open-source, trusted by the security community, and designed to minimize data collection.
+Decentralization and Data Monetization:
+While apps like WhatsApp provide strong encryption, their extensive metadata collection raises significant privacy concerns. Veil addresses these issues by decentralizing data storage and ensuring that encryption keys remain exclusively on the user’s device.
+Design Specification
+Core Objectives
+Security:
+
+End-to-End Encryption by Default:
+Every message is encrypted locally using an ephemeral key derived from a combination of a recent blockchain block hash and a unique message nonce.
+No Centralized Plaintext Storage:
+The server only ever handles ciphertext and ephemeral metadata, ensuring that plaintext remains on the device.
+Decentralization:
+
+Blockchain Integration:
+By using blockchain-derived block hashes as a source of randomness, Veil generates unique encryption keys for each message without centralized control.
+Resilience Against Surveillance:
+With no central repository of plaintext messages, the application minimizes the risk of large-scale data breaches or governmental overreach.
+Usability:
+
+Minimal Onboarding:
+A quick sign-up process based on phone number verification and optional username input.
+Clean, Intuitive UI:
+A layout that prioritizes a clear conversation view with “Chats” and “Contacts” tabs and minimal distractions.
+Seamless Messaging Experience:
+Real-time message delivery with smooth auto-scrolling, immediate UI feedback for sent and received messages, and unobtrusive encryption indicators.
+Feature Breakdown
+User Authentication & Profile Management
+Fast Registration and Login:
+Users register via a simple phone number-based process, followed by a dummy OTP verification flow.
+Local Key Generation:
+Cryptographic keys are generated and stored locally. The server only retains minimal user information (phone number, username, etc.) without sensitive encryption keys.
+Encrypted Messaging & Real-Time Communication
+Ephemeral Encryption Process:
+Key Derivation:
+Each message’s encryption key is derived by combining a recent blockchain block hash with a randomly generated nonce.
+AES-GCM Encryption:
+The message is encrypted using AES-GCM, and only the ciphertext and ephemeral metadata (nonce, block hash, IV, authentication tag) are sent to the server.
+Real-Time Message Delivery:
+Utilizing Socket.IO, Veil delivers messages instantly to online users. For offline users, encrypted messages are stored on the server and fetched upon the next login.
+Contact Management
+Adding Contacts:
+Users can search for and add contacts by phone number or username. The backend verifies contacts to prevent duplicates and ensures smooth integration into the contact list.
+Contact List and Recent Chats:
+The interface shows a sorted list of contacts and recent chats, updated in real time as messages are sent or received.
+Security Indicators & Verification
+Encryption Banner and Details:
+The UI displays a prominent “E2E Encrypted” banner. Advanced users can access a modal with detailed encryption metadata such as block hash, nonce, IV, and authentication tag for each message.
+Offline Message Handling:
+Ephemeral messages are stored in an “ephemeralmessages” collection on the server when the recipient is offline. They are fetched and decrypted locally once the user logs in again.
+System Design
+Architecture Overview
+Veil’s architecture is designed to avoid central points of failure:
+
+Frontend:
+Built with Electron, utilizing HTML, CSS (Tailwind), and JavaScript for a responsive desktop experience.
+Backend:
+A Node.js/Express server that interacts with MongoDB to store user profiles and ephemeral message records.
+Real-Time Communication:
+Socket.IO facilitates instant message delivery, with fallback mechanisms for offline scenarios.
+Decentralized Elements:
+Integration with a public blockchain (e.g., EOS) to fetch recent block hashes that seed encryption key generation.
+Database Design
+Users Collection:
+Stores minimal user data:
+
+Functional and Non-Functional Requirements
+Must-Have Features
+Default E2EE for all communications.
+Minimal, fast sign-up flow using phone verification.
+Real-time encrypted messaging with smooth UI transitions.
+Should-Have Features
+User presence indicators (online/offline).
+Display and verification of encryption metadata.
+Efficient offline caching and seamless sync upon reconnection.
+Could-Have Features
+Optional friend discovery and contact management improvements.
+Advanced security settings (self-destruct timers, 2FA).
+A “verified keys” screen for cryptographic fingerprint validation.
+Development Process & Testing Plan
+Agile Incremental Development
+The project will be developed in sprints, each culminating in a working demo:
+
+Sprint 1:
+Environment setup, basic onboarding, and authentication.
+Sprint 2:
+Contact management and real-time ephemeral encryption messaging.
+Sprint 3:
+Offline storage and retrieval, UI/UX enhancements, and initial user testing.
+Testing Strategies
+Unit Testing:
+Every function—especially cryptographic functions—will be tested with diverse inputs.
+Functional Testing:
+End-to-end scenarios (from login to sending/receiving messages) will be verified.
+User Testing:
+A group of testers will validate the usability and clarity of the encryption process.
+Conclusion
+Veil is designed to address the urgent need for secure, private messaging in a world where centralized data collection and surveillance are prevalent. By leveraging decentralized encryption techniques and a user-centric design, Veil provides robust security without compromising on ease of use. This project bridges the gap between security and convenience, offering a tool that protects user privacy with minimal friction.
+

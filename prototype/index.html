@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Veil - Secure Messaging</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Tailwind CSS via CDN (demo only) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            primary: '#121212',
+                            secondary: '#1e1e1e',
+                            tertiary: '#2a2a2a',
+                            input: '#333333'
+                        },
+                        purple: {
+                            primary: '#8a2be2',
+                            secondary: '#9370db',
+                            tertiary: '#b19cd9',
+                            hover: '#9932cc'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Inter font (Apple-like) -->
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Your Custom CSS -->
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- SweetAlert2 CSS and JS (CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Socket.IO (for real-time) -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+
+    <!-- API Utilities -->
+    <script src="./api-utils.js"></script>
+
+    <!-- Toast initialization -->
+    <script src="./toast-init.js"></script>
+</head>
+
+<body class="bg-dark-primary text-white min-h-screen flex flex-col">
+
+    <!-- ===================== ONBOARDING CONTAINER ===================== -->
+    <div id="onboardingContainer" class="flex-1 flex flex-col items-center justify-center p-4">
+        <!-- STEP 1: Phone -->
+        <div id="stepPhone"
+            class="max-w-sm w-full bg-dark-secondary rounded-lg shadow-md p-8 flex flex-col items-center space-y-6 fade-in">
+            <!-- App logo -->
+            <div class="app-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+            </div>
+
+            <!-- Heading + Subtext -->
+            <div class="text-center">
+                <h1 class="text-3xl font-bold text-white mb-2">Veil</h1>
+                <p class="text-gray-300 text-sm">
+                    Secure, ephemeral messaging
+                </p>
+            </div>
+
+            <div class="w-full space-y-4">
+                <!-- Progress Indicator -->
+                <div class="progress-indicator mb-6">
+                    <div class="progress-step active" data-step="phone">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">Phone</div>
+                    </div>
+                    <div class="progress-line"></div>
+                    <div class="progress-step" data-step="verification">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Verify</div>
+                    </div>
+                    <div class="progress-line"></div>
+                    <div class="progress-step" data-step="profile">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Profile</div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Phone Input -->
+                <div class="w-full">
+                    <label for="phoneInput" class="block text-gray-400 text-sm mb-1">
+                        Your phone number
+                    </label>
+                    <div id="phoneInputContainer" class="phone-input-container">
+                        <div class="phone-input-wrapper">
+                            <div class="country-select-container">
+                                <select id="countrySelect" class="country-select">
+                                    <!-- Will be populated by phone-input.js -->
+                                </select>
+                                <div class="select-arrow">
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </div>
+                            </div>
+                            <input id="phoneInput" type="tel" inputmode="tel" placeholder="Enter phone number" class="phone-input" />
+                            <button id="phoneClearBtn" class="phone-clear-btn hidden" type="button">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p id="phoneError" class="text-red-400 text-sm mt-1"></p>
+                </div>
+
+                <!-- "Continue" Button -->
+                <button onclick="startPhoneLogin()" class="btn-primary w-full py-3 mt-4">
+                    Continue
+                </button>
+
+                <!-- Demo mode notice -->
+                <div id="demoModeNotice" class="bg-dark-tertiary border border-purple-primary rounded-lg p-4 mb-6 text-center hidden">
+                    <p class="text-purple-tertiary text-sm font-medium mb-2">DEMO MODE</p>
+                    <p class="text-gray-300 text-sm">For this demo, use code:</p>
+                    <p class="text-white text-xl font-bold my-2">111111</p>
+                    <p class="text-gray-400 text-xs mt-2">In production, a real SMS will be sent to your phone.</p>
+                    <button onclick="fillDemoOtp()" class="bg-dark-tertiary hover:bg-dark-secondary border border-purple-primary text-purple-primary text-sm px-4 py-2 rounded-full mt-3 transition-all">
+                        Auto-fill Demo Code
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Move inline script to external file -->
+        <script src="./js/utils/country-data.js"></script>
+
+        <!-- Load the phone-input.js script -->
+        <script src="./js/utils/phone-input.js"></script>
+
+        <!-- STEP 2: Username -->
+        <div id="stepName" class="hidden max-w-md w-full space-y-6 fade-in">
+            <div class="bg-dark-secondary rounded-lg shadow-md p-8">
+                <div class="flex items-center mb-6">
+                    <button onclick="goBackToPhone()" class="text-gray-400 hover:text-white mr-4">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h1 class="text-2xl font-bold">What's your name?</h1>
+                </div>
+                <p class="text-gray-300 text-sm mb-6">
+                    Pick a username (letters, numbers, underscores).
+                </p>
+                <div>
+                    <input id="regUsername" type="text" placeholder="e.g. alice_wonder"
+                        class="input-dark w-full mb-6" />
+                    <button onclick="continueFromName()"
+                        class="btn-primary w-full py-3">
+                        Continue
+                    </button>
+                </div>
+                <p id="nameError" class="text-red-400 text-sm mt-4"></p>
+            </div>
+        </div>
+
+        <!-- STEP 3: Bio (Optional) -->
+        <div id="stepBio" class="hidden max-w-md w-full space-y-6 fade-in">
+            <div class="bg-dark-secondary rounded-lg shadow-md p-8">
+                <div class="flex items-center mb-6">
+                    <button onclick="goBackToName()" class="text-gray-400 hover:text-white mr-4">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h1 class="text-2xl font-bold">About you</h1>
+                </div>
+                <p class="text-gray-300 text-sm mb-6">
+                    (Optional) Share a short bio. You can skip this if you want.
+                </p>
+                <div>
+                    <textarea id="regBio" rows="3" placeholder="Write a short bio..."
+                        class="input-dark w-full mb-6"></textarea>
+                    <div class="flex space-x-3">
+                        <button onclick="continueFromBio()"
+                            class="btn-primary flex-1 py-3">
+                            Continue
+                        </button>
+                        <button onclick="skipBio()"
+                            class="btn-secondary flex-1 py-3">
+                            Skip
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTP verification step -->
+        <div id="stepOTP" class="hidden">
+            <div class="flex items-center mb-6">
+                <button onclick="goBackToPhone(); return false;" class="text-purple-secondary hover:text-purple-primary mr-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <h2 class="text-xl font-semibold text-white">Verify Your Number</h2>
+            </div>
+            
+            <p class="text-gray-300 mb-6">We've sent a verification code to your phone. Please enter it below.</p>
+            
+            <div id="otpError" class="text-red-500 text-sm mb-4"></div>
+            
+            <!-- Demo mode notice -->
+            <div class="bg-dark-tertiary border border-purple-primary rounded-lg p-4 mb-6 text-center">
+                <p class="text-purple-tertiary text-sm font-medium mb-2">DEMO MODE</p>
+                <p class="text-gray-300 text-sm">For this demo, use code:</p>
+                <p class="text-white text-xl font-bold my-2">111111</p>
+                <p class="text-gray-400 text-xs mt-2">In production, a real SMS will be sent to your phone.</p>
+                <button onclick="fillDemoOtp()" class="bg-dark-tertiary hover:bg-dark-secondary border border-purple-primary text-purple-primary text-sm px-4 py-2 rounded-full mt-3 transition-all">
+                    Auto-fill Demo Code
+                </button>
+            </div>
+            
+            <!-- OTP input with digit boxes -->
+            <div class="flex justify-center space-x-3 mb-6">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" data-index="0" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" data-index="1" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" data-index="2" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" data-index="3" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" data-index="4" />
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" data-index="5" />
+            </div>
+            
+            <!-- Hidden input to store the combined OTP value -->
+            <input id="otpInput" type="hidden" />
+            
+            <button id="verifyButton" class="btn btn-primary w-full">
+                Verify
+            </button>
+            
+            <div class="text-center mt-4">
+                <button onclick="resendOtp()" class="text-purple-secondary hover:text-purple-primary text-sm transition-colors">
+                    Didn't receive the code? Resend
+                </button>
+            </div>
+            
+            <!-- Loading spinner -->
+            <div class="loading-container flex justify-center mt-4 hidden">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+    </div>
+    <!-- ===================== END ONBOARDING ===================== -->
+
+    <!-- ===================== MAIN CHAT SCREEN ===================== -->
+    <!-- Main Chat Screen -->
+    <div id="chatScreen" class="hidden h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-dark-secondary p-4 border-b border-dark-tertiary flex justify-between items-center">
+            <div class="flex items-center">
+                <div class="app-logo mr-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-purple-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                </div>
+                <h1 class="text-xl font-semibold text-white">Veil</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="connectionStatus" class="text-sm px-3 py-1 rounded-full bg-dark-tertiary">
+                    <span class="text-gray-500">●</span> <span class="connection-text">Connecting...</span>
+                </div>
+                <div class="relative">
+                    <button id="userMenuButton" class="flex items-center space-x-2 focus:outline-none">
+                        <div class="flex flex-col items-end mr-2 hidden md:block">
+                            <span id="userDisplay" class="text-sm font-medium">User</span>
+                            <span id="userAnonId" class="text-xs text-purple-tertiary"></span>
+                        </div>
+                        <div id="userProfilePic" class="profile-pic profile-pic-sm">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </button>
+                    <div id="userMenu" class="absolute right-0 mt-2 w-64 bg-dark-secondary rounded-md shadow-lg py-1 z-10 hidden">
+                        <div class="px-4 py-3 border-b border-dark-tertiary">
+                            <div class="font-medium" id="userMenuName">User</div>
+                            <div class="text-sm text-purple-tertiary" id="userMenuAnonId"></div>
+                        </div>
+                        <a href="#" onclick="showUserProfile()" class="block px-4 py-2 text-sm hover:bg-dark-tertiary flex items-center">
+                            <i class="fas fa-user-circle mr-2 text-purple-tertiary"></i> My Profile
+                        </a>
+                        <a href="#" onclick="showUserSettings()" class="block px-4 py-2 text-sm hover:bg-dark-tertiary flex items-center">
+                            <i class="fas fa-cog mr-2 text-purple-tertiary"></i> Settings
+                        </a>
+                        <div class="border-t border-dark-tertiary mt-1"></div>
+                        <a href="#" onclick="handleLogout()" class="block px-4 py-2 text-sm hover:bg-dark-tertiary text-red-400 flex items-center">
+                            <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Sidebar -->
+            <div id="sidebar" class="w-full md:w-80 bg-dark-secondary flex flex-col border-r border-dark-tertiary">
+                <!-- Search -->
+                <div class="p-4">
+                    <div class="relative">
+                        <input id="contactSearchInput" type="text" placeholder="Search contacts..." 
+                               class="w-full bg-dark-tertiary text-white rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-primary transition-all duration-200"
+                               oninput="searchContacts()">
+                        <div class="absolute left-3 top-2.5 text-gray-400">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tabs -->
+                <div class="flex border-b border-dark-tertiary">
+                    <button id="chatsTab" class="tab-button active-tab flex-1 py-3 text-center" onclick="toggleTab('chats')">
+                        <i class="fas fa-comments mr-2"></i> Chats
+                    </button>
+                    <button id="contactsTab" class="tab-button flex-1 py-3 text-center" onclick="toggleTab('contacts')">
+                        <i class="fas fa-address-book mr-2"></i> Contacts
+                    </button>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="flex-1 overflow-y-auto">
+                    <!-- Chats Tab -->
+                    <div id="chatsContent" class="tab-content">
+                        <div id="recentChatsList" class="p-2 space-y-1">
+                            <!-- Chats will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Contacts Tab -->
+                    <div id="contactsContent" class="tab-content hidden">
+                        <div id="contactsList" class="p-2 space-y-1">
+                            <!-- Contacts will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Add Contact Button -->
+                <div class="p-4 border-t border-dark-tertiary">
+                    <button onclick="openAddContactModal()" class="btn-primary w-full py-2.5 flex items-center justify-center">
+                        <i class="fas fa-user-plus mr-2"></i> Add Contact
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div id="chatArea" class="hidden md:flex flex-1 flex-col bg-dark-primary">
+                <!-- Chat Header -->
+                <div id="chatHeader" class="hidden p-4 border-b border-dark-tertiary flex flex-col">
+                    <!-- Back Button (Only visible when in chat) -->
+                    <div class="flex items-center mb-2">
+                        <button id="backButton" class="hidden text-gray-400 hover:text-white p-1 rounded-full hover:bg-dark-tertiary transition-all duration-200" onclick="goBackToContacts()">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Contact Info -->
+                    <div class="flex items-center">
+                        <div id="chatContactPic" class="profile-pic mr-3"></div>
+                        <div class="flex-1">
+                            <h2 id="chatTitle" class="font-medium"></h2>
+                            <p id="chatSubtitle" class="text-sm text-gray-400"></p>
+                        </div>
+                        <div>
+                            <button onclick="showEncryptionInfo()" class="text-gray-400 hover:text-purple-primary p-2 rounded-full hover:bg-dark-tertiary transition-all duration-200">
+                                <i class="fas fa-lock"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Encryption Banner -->
+                <div id="encryptionBanner" class="hidden bg-dark-tertiary text-xs text-center py-1 text-gray-400">
+                    <i class="fas fa-lock mr-1"></i> End-to-end encrypted
+                </div>
+                
+                <!-- Empty Chat Placeholder -->
+                <div id="emptyChatPlaceholder" class="empty-chat-placeholder">
+                    <div class="empty-chat-icon">
+                        <i class="fas fa-comments text-purple-tertiary opacity-30 text-6xl mb-4"></i>
+                    </div>
+                    <h3 class="text-xl font-medium mb-2">Select a chat to start messaging</h3>
+                    <p class="text-gray-400 max-w-md text-center">Your messages are end-to-end encrypted and only visible to you and the recipient.</p>
+                </div>
+                
+                <!-- Chat Container -->
+                <div id="chatContainer" class="hidden flex-1 flex flex-col">
+                    <!-- Messages -->
+                    <div id="chatMessages" class="flex-1 overflow-y-auto p-4"></div>
+                    
+                    <!-- Message Input -->
+                    <div class="message-input-container p-3 border-t border-dark-tertiary bg-dark-secondary">
+                        <!-- Message Textarea -->
+                        <div class="flex items-end space-x-2">
+                            <div class="flex-1 relative">
+                                <textarea id="messageInput" class="message-input w-full resize-none" 
+                                          placeholder="Type a message..." rows="1"></textarea>
+                            </div>
+                            
+                            <!-- Send Button -->
+                            <button id="sendMessageBtn" class="p-2.5 bg-purple-primary text-white rounded-full flex-shrink-0 hover:bg-purple-dark transition-all duration-200">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ===================== END CHAT SCREEN ===================== -->
+
+    <!-- ===================== ADD CONTACT MODAL ===================== -->
+    <div id="addContactModal" class="modal-bg hidden">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium">Add Contact</h3>
+                <button onclick="closeAddContactModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div>
+                <div class="relative">
+                    <div class="flex items-center bg-dark-tertiary rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-purple-primary">
+                        <i class="fas fa-search text-gray-400 mr-2"></i>
+                        <input id="searchInput" type="text" placeholder="Search by username or phone number" 
+                               class="w-full bg-transparent border-none text-white focus:outline-none"
+                               oninput="liveContactSearch()">
+                        <button id="searchClearBtn" class="text-gray-400 hover:text-white hidden" onclick="clearContactSearch()">
+                            <i class="fas fa-times-circle"></i>
+                        </button>
+                    </div>
+                    <div id="searchSpinner" class="absolute right-3 top-3 hidden">
+                        <div class="loading-spinner w-5 h-5"></div>
+                    </div>
+                </div>
+                
+                <div id="contactAddError" class="text-red-500 text-sm mt-2 mb-2 hidden"></div>
+                
+                <!-- Search Results -->
+                <div id="searchResults" class="search-results hidden">
+                    <!-- Results will be populated here -->
+                </div>
+                
+                <!-- Initial State -->
+                <div id="initialSearchState" class="py-8 text-center">
+                    <div class="text-gray-400 mb-3">
+                        <i class="fas fa-search text-4xl"></i>
+                    </div>
+                    <p class="text-gray-300">Search for users by username or phone number</p>
+                    <p class="text-gray-400 text-sm mt-2">Results will appear here</p>
+                </div>
+                
+                <!-- No Results State -->
+                <div id="noResultsState" class="py-8 text-center hidden">
+                    <div class="text-gray-400 mb-3">
+                        <i class="fas fa-user-slash text-4xl"></i>
+                    </div>
+                    <p class="text-gray-300">No users found</p>
+                    <p class="text-gray-400 text-sm mt-2">Try a different search term</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== PROFILE MODAL ===================== -->
+    <div id="profileModal" class="hidden fixed inset-0 flex items-center justify-center modal-bg">
+        <div class="bg-dark-secondary p-6 rounded-lg w-96 relative slide-up">
+            <button class="absolute right-4 top-4 text-gray-400 hover:text-gray-200 text-xl"
+                onclick="closeProfileModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="profileContent"></div>
+        </div>
+    </div>
+
+    <!-- Encryption Info Modal -->
+    <div id="encryptionInfoModal" class="modal-bg hidden">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium">End-to-End Encryption</h3>
+                <button onclick="closeEncryptionInfo()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <p>Messages in this chat are secured with end-to-end encryption. This means:</p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>Messages are encrypted on your device before being sent</li>
+                    <li>Only you and the recipient can read the messages</li>
+                    <li>Not even our servers can access the content of your messages</li>
+                    <li>Each message uses a unique encryption key</li>
+                </ul>
+                <div class="bg-dark-tertiary p-3 rounded-lg">
+                    <p class="text-sm mb-2"><i class="fas fa-shield-alt text-purple-primary mr-2"></i> <strong>Security Features:</strong></p>
+                    <ul class="text-sm space-y-1 text-gray-300">
+                        <li>• AES-256-GCM encryption</li>
+                        <li>• Perfect Forward Secrecy</li>
+                        <li>• Ephemeral messaging</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Info Modal -->
+    <div id="messageInfoModal" class="modal-bg hidden">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium">Message Details</h3>
+                <button onclick="window.closeMessageInfo()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="messageInfoContent"></div>
+        </div>
+    </div>
+
+    <!-- Contact Profile Modal -->
+    <div id="contactProfileModal" class="modal-bg hidden">
+        <div class="modal-content max-w-md w-full bg-dark-secondary rounded-lg overflow-hidden">
+            <!-- Header with close button -->
+            <div class="modal-header flex justify-between items-center p-4 border-b border-dark-tertiary">
+                <h3 class="modal-title text-lg font-medium">Contact Profile</h3>
+                <button onclick="closeContactProfileModal()" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Profile content -->
+            <div class="p-6">
+                <!-- Profile picture and name -->
+                <div class="flex flex-col items-center mb-6">
+                    <div id="profileModalPic" class="profile-pic profile-pic-lg mb-4">
+                        <!-- Will be populated by JS -->
+                    </div>
+                    <h2 id="profileModalName" class="text-xl font-bold text-center"></h2>
+                    <p id="profileModalPhone" class="text-gray-400 text-sm mt-1"></p>
+                </div>
+                
+                <!-- Bio section -->
+                <div class="mb-6">
+                    <h4 class="text-sm text-gray-400 uppercase tracking-wider mb-2">Bio</h4>
+                    <p id="profileModalBio" class="bg-dark-tertiary rounded-lg p-4 text-gray-200"></p>
+                </div>
+                
+                <!-- Actions -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="messageContactBtn" class="btn-primary">
+                        <i class="fas fa-comment mr-2"></i> Message
+                    </button>
+                    <button id="removeContactModalBtn" class="btn-secondary">
+                        <i class="fas fa-user-minus mr-2"></i> Remove
+                    </button>
+                </div>
+                
+                <!-- Additional info -->
+                <div class="mt-6 pt-6 border-t border-dark-tertiary">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-gray-400">Last seen</span>
+                        <span id="profileModalLastSeen" class="text-gray-200"></span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Encryption</span>
+                        <span class="text-green-400"><i class="fas fa-lock mr-1"></i> Enabled</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Modal -->
+    <div id="welcomeModal" class="modal-bg hidden">
+        <div class="modal-content max-w-md w-full bg-dark-secondary rounded-lg overflow-hidden">
+            <!-- Header with close button -->
+            <div class="modal-header flex justify-between items-center p-4 border-b border-dark-tertiary">
+                <h3 class="modal-title text-lg font-medium">Welcome to Veil!</h3>
+                <button onclick="closeWelcomeModal()" class="modal-close text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Welcome content -->
+            <div class="p-6">
+                <!-- Celebration animation -->
+                <div class="celebration-container flex justify-center mb-6">
+                    <div class="celebration-animation">
+                        <i class="fas fa-check-circle text-6xl text-green-500 mb-4"></i>
+                        <div class="confetti-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Welcome message -->
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold mb-2">Registration Complete!</h2>
+                    <p class="text-gray-300 mb-4">Your secure messaging account is ready to use.</p>
+                </div>
+                
+                <!-- AnonID section -->
+                <div class="bg-dark-tertiary rounded-lg p-4 mb-6">
+                    <h4 class="text-sm text-gray-400 uppercase tracking-wider mb-2">Your Anonymous ID</h4>
+                    <div class="flex items-center justify-between">
+                        <p id="welcomeAnonId" class="text-xl font-mono text-purple-primary"></p>
+                        <button id="copyAnonIdBtn" class="text-gray-400 hover:text-white p-2 bg-dark-input rounded-full transition-all duration-200" title="Copy to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-400 mt-2">Share this ID with friends so they can contact you securely.</p>
+                </div>
+                
+                <!-- Get started button -->
+                <button onclick="closeWelcomeModal()" class="btn-primary w-full py-3 flex items-center justify-center">
+                    <i class="fas fa-rocket mr-2"></i> Get Started
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move inline script to external file -->
+    <!-- Scripts are loaded at the end of the body -->
+
+    <!-- Load the main.js script with type="module" -->
+    <script type="module" src="./js/main.js"></script>
+
+    <!-- Add this script tag right before the closing </body> tag -->
+    <script>
+      // Hide demo mode notice by default
+      document.addEventListener('DOMContentLoaded', function() {
+        const demoModeNotice = document.querySelector('#stepOTP .bg-dark-tertiary');
+        if (demoModeNotice) {
+          demoModeNotice.style.display = 'none';
+        }
+      });
+    </script>
+</body>
+
+</html>

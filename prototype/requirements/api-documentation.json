@@ -1,0 +1,967 @@
+{
+  "version": "1.0",
+  "generatedAt": "2025-03-04T12:07:20.402Z",
+  "endpoints": [
+    {
+      "path": "/auth/start",
+      "method": "POST",
+      "category": "auth",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "phoneNumber"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'User found. OTP sent.', needsRegistration: false, smsStatus: smsResult.success ? 'sent' : 'failed', // Only include OTP in demo mode ...(config.sms.demoMode && { otp }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Phone not registered, register flow', needsRegistration: true, smsStatus: smsResult.success ? 'sent' : 'failed', // Only include OTP in demo mode ...(config.sms.demoMode && { otp }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Phone number is required' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error: ' + err.message }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/auth/register",
+      "method": "POST",
+      "category": "auth",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "phoneNumber",
+          "username",
+          "bio",
+          "pfp",
+          "otp"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'User registered successfully, please verify OTP', user: { _id: user._id, phoneNumber: user.phoneNumber, username: user.username, bio: user.bio, pfp: user.pfp, } }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Login successful', user: { _id: user._id, phoneNumber: user.phoneNumber, username: user.username, bio: user.bio, pfp: user.pfp, }, token, }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Phone number is required' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Username is required' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Phone number already registered' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Username already taken' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error: ' + err.message }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Phone number and OTP are required' }"
+          },
+          {
+            "statusCode": "401",
+            "body": "{ error: 'Invalid or expired OTP' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/auth/verify",
+      "method": "POST",
+      "category": "auth",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "phoneNumber",
+          "otp"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Login successful', user: { _id: user._id, phoneNumber: user.phoneNumber, username: user.username, bio: user.bio, pfp: user.pfp, }, token, }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Phone number and OTP are required' }"
+          },
+          {
+            "statusCode": "401",
+            "body": "{ error: 'Invalid or expired OTP' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error: ' + err.message }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/contacts",
+      "method": "GET",
+      "category": "contacts",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ contacts: user.contacts.map(c => ({ _id: c._id, username: c.username, phoneNumber: c.phoneNumber, bio: c.bio, pfp: c.pfp, }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/contacts",
+      "method": "POST",
+      "category": "contacts",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "userId",
+          "contactId",
+          "sharePhoneNumber"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ contact: { _id: contactUser._id, username: contactUser.username, phoneNumber: contactUser.phoneNumber, bio: contactUser.bio, profilePicture: contactUser.profilePicture, } }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid user ID format' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Already in contacts' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/contacts/:contactId",
+      "method": "DELETE",
+      "category": "contacts",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Contact removed successfully' }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ users: filteredUsers }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid contact ID' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'Contact not found in your contacts' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Search term is required' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid user ID' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/contacts/search",
+      "method": "GET",
+      "category": "contacts",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "userId",
+          "searchTerm"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ users: filteredUsers }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Search term is required' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid user ID' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/contacts/search",
+      "method": "POST",
+      "category": "contacts",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "userId",
+          "searchTerm"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ users: filteredUsers }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Search term is required' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid user ID' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/messages",
+      "method": "GET",
+      "category": "messages",
+      "parameters": {
+        "path": [
+          "id"
+        ],
+        "query": [],
+        "body": [
+          "messageId",
+          "toUserId",
+          "nonceHex",
+          "blockHash",
+          "iv",
+          "authTag",
+          "ciphertext",
+          "time",
+          "type = 'text'",
+          "expiresAfterRead = 0",
+          "fileMetadata = null",
+          "messageIds"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ ephemeralMessages: msgs }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ messages: msgs, note: 'This endpoint is for debugging only and should be removed in production' }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Message already exists', msgId: existingMsg._id, messageId: existingMsg.messageId }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Ephemeral message stored', msgId: msg._id, messageId: msg.messageId }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Message acknowledged', messageId: message.messageId }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Messages marked as read', count: result.modifiedCount }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Message deleted successfully' }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Conversation deleted', count: result.deletedCount }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Cleanup completed', deletedCount: result.deletedCount }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'contactId is required' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Missing required fields' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'messageId is required' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'Message not found' }"
+          },
+          {
+            "statusCode": "403",
+            "body": "{ error: 'Not authorized to acknowledge this message' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'messageIds array is required' }"
+          },
+          {
+            "statusCode": "403",
+            "body": "{ error: 'Not authorized to delete this message' }"
+          },
+          {
+            "statusCode": "403",
+            "body": "{ error: 'Admin access required' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/messages/history",
+      "method": "GET",
+      "category": "messages",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ messages: msgs, note: 'This endpoint is for debugging only and should be removed in production' }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'contactId is required' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/messages/store",
+      "method": "POST",
+      "category": "messages",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "messageId",
+          "toUserId",
+          "nonceHex",
+          "blockHash",
+          "iv",
+          "authTag",
+          "ciphertext",
+          "time",
+          "type = 'text'",
+          "expiresAfterRead = 0",
+          "fileMetadata = null"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Message already exists', msgId: existingMsg._id, messageId: existingMsg.messageId }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Ephemeral message stored', msgId: msg._id, messageId: msg.messageId }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Missing required fields' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/messages/ack",
+      "method": "POST",
+      "category": "messages",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "messageId"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Message acknowledged', messageId: message.messageId }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'messageId is required' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'Message not found' }"
+          },
+          {
+            "statusCode": "403",
+            "body": "{ error: 'Not authorized to acknowledge this message' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/messages/read",
+      "method": "POST",
+      "category": "messages",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": [
+          "messageIds"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Messages marked as read', count: result.modifiedCount }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'messageIds array is required' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/messages/:id",
+      "method": "DELETE",
+      "category": "messages",
+      "parameters": {
+        "path": [
+          "id"
+        ],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Message deleted successfully' }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "404",
+            "body": "{ error: 'Message not found' }"
+          },
+          {
+            "statusCode": "403",
+            "body": "{ error: 'Not authorized to delete this message' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/messages",
+      "method": "DELETE",
+      "category": "messages",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Conversation deleted', count: result.deletedCount }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'contactId is required' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/messages/cleanup",
+      "method": "POST",
+      "category": "messages",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Cleanup completed', deletedCount: result.deletedCount }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "403",
+            "body": "{ error: 'Admin access required' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/users/:id",
+      "method": "GET",
+      "category": "users",
+      "parameters": {
+        "path": [
+          "id"
+        ],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ _id: user._id, username: user.username, phoneNumber: user.phoneNumber, bio: user.bio, pfp: user.pfp }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid user ID format' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/users/me",
+      "method": "GET",
+      "category": "users",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ _id: user._id, username: user.username, phoneNumber: user.phoneNumber, bio: user.bio, pfp: user.pfp, createdAt: user.createdAt, lastActive: user.lastActive }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/users/me",
+      "method": "PUT",
+      "category": "users",
+      "parameters": {
+        "path": [
+          "id"
+        ],
+        "query": [],
+        "body": [
+          "username",
+          "bio",
+          "pfp",
+          "password",
+          "phoneNumberVisibility"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Profile updated successfully', user: { _id: user._id, username: user.username, phoneNumber: user.phoneNumber, bio: user.bio, pfp: user.pfp } }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Password updated successfully' }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Account deactivated successfully' }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Privacy settings updated successfully', user: { _id: user._id, username: user.username, phoneNumber: user.phoneNumber, bio: user.bio, pfp: user.pfp, privacySettings: user.privacySettings } }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Username already taken' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Password must be at least 8 characters' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid user ID format' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid phone number visibility setting' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/users/me/password",
+      "method": "PUT",
+      "category": "users",
+      "parameters": {
+        "path": [
+          "id"
+        ],
+        "query": [],
+        "body": [
+          "password",
+          "phoneNumberVisibility"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Password updated successfully' }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Account deactivated successfully' }"
+          },
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Privacy settings updated successfully', user: { _id: user._id, username: user.username, phoneNumber: user.phoneNumber, bio: user.bio, pfp: user.pfp, privacySettings: user.privacySettings } }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Password must be at least 8 characters' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid user ID format' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid phone number visibility setting' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/users/me",
+      "method": "DELETE",
+      "category": "users",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": []
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Account deactivated successfully' }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/users/:id/privacy",
+      "method": "PUT",
+      "category": "users",
+      "parameters": {
+        "path": [
+          "id"
+        ],
+        "query": [],
+        "body": [
+          "phoneNumberVisibility"
+        ]
+      },
+      "responses": {
+        "success": [
+          {
+            "statusCode": "200",
+            "body": "{ message: 'Privacy settings updated successfully', user: { _id: user._id, username: user.username, phoneNumber: user.phoneNumber, bio: user.bio, pfp: user.pfp, privacySettings: user.privacySettings } }"
+          }
+        ],
+        "error": [
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid user ID format' }"
+          },
+          {
+            "statusCode": "400",
+            "body": "{ error: 'Invalid phone number visibility setting' }"
+          },
+          {
+            "statusCode": "404",
+            "body": "{ error: 'User not found' }"
+          },
+          {
+            "statusCode": "500",
+            "body": "{ error: 'Server error' }"
+          }
+        ]
+      }
+    }
+  ],
+  "socketEvents": [
+    {
+      "name": "registerUser",
+      "type": "incoming",
+      "parameters": [],
+      "emits": []
+    },
+    {
+      "name": "userStatus",
+      "type": "incoming",
+      "parameters": [
+        "data"
+      ],
+      "emits": []
+    },
+    {
+      "name": "ephemeral_message",
+      "type": "incoming",
+      "parameters": [
+        "encryptedData"
+      ],
+      "emits": [
+        {
+          "target": "sender",
+          "event": "message_delivered"
+        },
+        {
+          "target": "sender",
+          "event": "message_stored"
+        }
+      ]
+    },
+    {
+      "name": "message_read",
+      "type": "incoming",
+      "parameters": [
+        "data"
+      ],
+      "emits": [
+        {
+          "target": "sender",
+          "event": "user_status"
+        },
+        {
+          "target": "sender",
+          "event": "ephemeral_message"
+        }
+      ]
+    },
+    {
+      "name": "disconnect",
+      "type": "incoming",
+      "parameters": [],
+      "emits": []
+    }
+  ]
+}
