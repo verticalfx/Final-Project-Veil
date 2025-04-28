@@ -1391,3 +1391,9 @@ window.closeMessageInfo = closeMessageInfo;
 window.closeMessageInfo = closeMessageInfo; 
 window.closeMessageInfo = closeMessageInfo; 
 window.createNewMessagesNotification = createNewMessagesNotification; 
+
+
+
+
+
+
