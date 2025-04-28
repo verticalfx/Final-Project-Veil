@@ -9,14 +9,14 @@ const mongoose = require('mongoose');
  * GET /users/:id
  * Get a user's public profile
  */
-router.get('/:id', async (req, res) => {
+router.get('/id/:id', async (req, res) => {
   try {
-    // Validate ID format
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid user ID format' });
     }
     
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -83,28 +83,18 @@ router.get('/anon/:anonId', async (req, res) => {
  * Get the authenticated user's profile
  */
 router.get('/me', async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    return res.json({
-      _id: user._id,
-      anonId: user.anonId,
-      username: user.username,
-      phoneNumber: user.phoneNumber, // Only include phone number in own profile
-      bio: user.bio,
-      pfp: user.pfp,
-      createdAt: user.createdAt,
-      lastActive: user.lastActive
-    });
-  } catch (err) {
-    console.error('GET /users/me error:', err);
-    return res.status(500).json({ error: 'Server error' });
-  }
+  const user = await User.findById(req.user.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  return res.json({
+    _id: user._id,
+    anonId: user.anonId,
+    username: user.username,
+    phoneNumber: user.phoneNumber,
+    bio: user.bio,
+    pfp: user.pfp,
+    createdAt: user.createdAt,
+    lastActive: user.lastActive
+  });
 });
 
 /**
@@ -112,47 +102,19 @@ router.get('/me', async (req, res) => {
  * Update the authenticated user's profile
  */
 router.put('/me', async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const { username, bio, pfp } = req.body;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // Check if username is being changed and if it's already taken
-    if (username && username !== user.username) {
-      const existingUser = await User.findOne({ username });
-      if (existingUser) {
-        return res.status(400).json({ error: 'Username already taken' });
-      }
-      user.username = username;
-    }
-    
-    // Update other fields if provided
-    if (bio !== undefined) user.bio = bio;
-    if (pfp !== undefined) user.pfp = pfp;
-    
-    // Update last active timestamp
-    user.lastActive = new Date();
-    
-    await user.save();
-    
-    return res.json({
-      message: 'Profile updated successfully',
-      user: {
-        _id: user._id,
-        username: user.username,
-        phoneNumber: user.phoneNumber,
-        bio: user.bio,
-        pfp: user.pfp
-      }
-    });
-  } catch (err) {
-    console.error('PUT /users/me error:', err);
-    return res.status(500).json({ error: 'Server error' });
+  const user = await User.findById(req.user.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const { username, bio, pfp } = req.body;
+  if (username && username !== user.username) {
+    const exists = await User.findOne({ username });
+    if (exists) return res.status(400).json({ error: 'Username already taken' });
+    user.username = username;
   }
+  if (bio !== undefined) user.bio = bio;
+  if (pfp !== undefined) user.pfp = pfp;
+  user.lastActive = new Date();
+  await user.save();
+  return res.json({ message: 'Profile updated successfully', user });
 });
 
 /**
@@ -296,48 +258,22 @@ router.post('/block/:id', async (req, res) => {
   try {
     const userId = req.user.userId;
     const targetUserId = req.params.id;
-    
-    // Validate ID format
     if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
       return res.status(400).json({ error: 'Invalid user ID format' });
     }
-    
-    // Check if trying to block self
     if (userId === targetUserId) {
       return res.status(400).json({ error: 'Cannot block yourself' });
     }
-    
-    // Check if target user exists
-    const targetUser = await User.findById(targetUserId);
-    if (!targetUser) {
-      return res.status(404).json({ error: 'User to block not found' });
-    }
-    
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // Initialize blockedUsers array if it doesn't exist
-    if (!user.blockedUsers) {
-      user.blockedUsers = [];
-    }
-    
-    // Check if user is already blocked
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user.blockedUsers) user.blockedUsers = [];
     if (user.blockedUsers.includes(targetUserId)) {
-      return res.status(400).json({ error: 'User is already blocked' });
+      return res.json({ message: 'User already blocked', blockedUserId: targetUserId });
     }
-    
-    // Add user to blocked list
     user.blockedUsers.push(targetUserId);
     await user.save();
-    
-    return res.json({
-      message: 'User blocked successfully',
-      blockedUserId: targetUserId
-    });
-  } catch (err) {
-    console.error('POST /users/block/:id error:', err);
+    return res.json({ message: 'User blocked successfully', blockedUserId: targetUserId });
+  } catch (e) {
     return res.status(500).json({ error: 'Server error' });
   }
 });

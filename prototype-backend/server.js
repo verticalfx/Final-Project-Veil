@@ -104,29 +104,42 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
   const userId = socket.user.userId;
+  const anonId = socket.user.anonId;
   console.log('User connected with ID:', userId);
   
   // Debug: Log current userSockets state
   console.log('Current userSockets:', Object.keys(userSockets));
 
-  // Register user socket
-  socket.on('registerUser', () => {
-    console.log(`Registering user ${userId} with socket ${socket.id}`);
+  // Helper to register socket under both IDs
+  function registerUserSocket() {
+    console.log(`Registering user ${userId} (${anonId}) with socket ${socket.id}`);
     userSockets[userId] = socket;
-    userStatusMap[userId] = true; // Mark them as online
-    console.log(`User ${userId} => socket ${socket.id}`);
+    if (anonId) userSockets[anonId] = socket;
+    userStatusMap[userId] = true;
+    if (anonId) userStatusMap[anonId] = true;
     console.log('Updated userSockets:', Object.keys(userSockets));
     broadcastStatus(userId, true);
-  });
+  }
+
+  // Register on explicit event
+  socket.on('registerUser', registerUserSocket);
 
   // Automatically register the user on connection
-  userSockets[userId] = socket;
-  userStatusMap[userId] = true;
-  console.log(`Auto-registered user ${userId} => socket ${socket.id}`);
-  broadcastStatus(userId, true);
+  registerUserSocket();
   
   // Deliver any pending messages
   deliverPendingMessages(userId, socket);
+
+  // Send list of currently online users to the newly connected socket
+  for (const [onlineUserId, isOnline] of Object.entries(userStatusMap)) {
+    if (onlineUserId !== userId && isOnline) {
+      socket.emit('user_status', {
+        userId: onlineUserId,
+        status: 'online',
+        lastSeen: new Date()
+      });
+    }
+  }
 
   // The user front-end calls: socket.emit('userStatus', { online: ... })
   socket.on('userStatus', (data) => {
@@ -168,6 +181,20 @@ io.on('connection', (socket) => {
       console.log('Recipient socket connected:', userSockets[encryptedData.toUserId].connected);
     }
 
+    // Normalize recipient ID (allow anonId)
+    let recipientId = encryptedData.toUserId;
+    if (typeof recipientId === 'string' && /^888\d{7}$/.test(recipientId)) {
+      try {
+        const recUser = await User.findOne({ anonId: recipientId }).select('_id');
+        if (recUser) recipientId = recUser._id.toString();
+      } catch (e) {
+        console.error('Error resolving anonId to userId:', e);
+      }
+    }
+    encryptedData.toUserId = recipientId;
+
+    const recipientSocket = userSockets[recipientId];
+
     try {
       // Check if the recipient has blocked the sender
       const User = require('./models/User');
@@ -203,7 +230,6 @@ io.on('connection', (socket) => {
       }
       
       // Check if recipient is online
-      const recipientSocket = userSockets[encryptedData.toUserId];
       if (recipientSocket && recipientSocket.connected) {
         // Relay immediately
         console.log('Recipient is online, relaying message immediately');
@@ -261,13 +287,13 @@ io.on('connection', (socket) => {
   socket.on('message_read', (data) => {
     console.log('Read receipt from', userId, 'for message', data.messageId);
     
-    // Find the sender's socket
-    const senderSocket = userSockets[data.fromUserId];
+    // Relay to original sender (data.toUserId)
+    const senderSocket = userSockets[data.toUserId];
     if (senderSocket && senderSocket.connected) {
       // Relay the read receipt
       senderSocket.emit('message_read', {
         messageId: data.messageId,
-        toUserId: data.fromUserId,
+        toUserId: senderSocket.user ? senderSocket.user.userId : data.toUserId,
         fromUserId: userId,
         timestamp: new Date()
       });
@@ -280,7 +306,9 @@ io.on('connection', (socket) => {
     if (userSockets[userId] === socket) {
       console.log(`Removing user ${userId} from userSockets`);
       delete userSockets[userId];
+      if (anonId) delete userSockets[anonId];
       userStatusMap[userId] = false; // Mark them offline
+      if (anonId) userStatusMap[anonId] = false;
       broadcastStatus(userId, false);
     } else {
       console.log(`Socket ${socket.id} disconnected but was not the active socket for user ${userId}`);

@@ -72,8 +72,8 @@ router.post('/start', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired request token' });
     }
     
-    // Check cooldown period (e.g., 30 seconds)
-    if (lastRequest && (now - lastRequest.timestamp < 30000)) {
+    // Check cooldown period (e.g., 30 seconds) - skip in demo mode
+    if (!config.sms.demoMode && lastRequest && (now - lastRequest.timestamp < 30000)) {
       return res.status(429).json({ 
         error: 'Please wait before requesting another OTP',
         retryAfter: Math.ceil((lastRequest.timestamp + 30000 - now) / 1000)
@@ -214,8 +214,8 @@ router.post('/register', async (req, res) => {
  * STEP 3: Verify OTP and login
  */
 router.post('/verify', async (req, res) => {
-  const { phoneNumber, otp } = req.body;
-  const requestToken = req.headers['x-otp-request-token'];
+  const { phoneNumber, otp, requestToken: bodyRequestToken } = req.body;
+  const requestToken = req.headers['x-otp-request-token'] || bodyRequestToken;
   
   // Get stored OTP data
   const otpData = otpStore.get(phoneNumber);
@@ -235,9 +235,22 @@ router.post('/verify', async (req, res) => {
   
   try {
     // Find the user
-    const user = await User.findOne({ phoneNumber });
+    let user = await User.findOne({ phoneNumber });
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      // Auto-register on the fly for test convenience
+      let anonId;
+      let isAnonIdUnique = false;
+
+      while (!isAnonIdUnique) {
+        anonId = generateTelegramStyleAnonId();
+        // Ensure uniqueness
+        // eslint-disable-next-line no-await-in-loop
+        const existing = await User.findOne({ anonId });
+        if (!existing) isAnonIdUnique = true;
+      }
+
+      user = new User({ phoneNumber, anonId });
+      await user.save();
     }
 
     // Clear the OTP

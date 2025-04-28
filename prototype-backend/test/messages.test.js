@@ -1,4 +1,3 @@
-
 // prototype-backend/test/messages.test.js
 const ioClient = require('socket.io-client');
 const request  = require('supertest');
@@ -24,7 +23,7 @@ describe('Socket.IO messaging', function() {
       requestToken: reqTokenA
     }).expect(200);
     tokenA = verifyA.body.token;
-    userA  = verifyA.body.user;
+    userA  = { anonId: verifyA.body.user.anonId, _id: verifyA.body.user._id };
 
     const phoneB = '+44123452222';
     const startB = await api.post('/auth/start').send({ phoneNumber: phoneB }).expect(200);
@@ -37,7 +36,7 @@ describe('Socket.IO messaging', function() {
       requestToken: reqTokenB
     }).expect(200);
     tokenB = verifyB.body.token;
-    userB  = verifyB.body.user;
+    userB  = { anonId: verifyB.body.user.anonId, _id: verifyB.body.user._id };
   });
 
   after(() => {
@@ -51,15 +50,15 @@ describe('Socket.IO messaging', function() {
 
     clientB.on('ephemeral_message', msg => {
       expect(msg).to.have.property('ciphertext');
-      expect(msg.toUserId).to.equal(userB.anonId);
+      expect(msg.toUserId).to.equal(userB._id);
       done();
     });
 
     clientB.on('connect', () => {
       const payload = {
         messageId:    'msg1',
-        toUserId:     userB.anonId,
-        fromUserId:   userA.anonId,
+        toUserId:     userB._id,
+        fromUserId:   userA._id,
         nonceHex:     '00',
         blockHash:    '00',
         iv:           '00',
@@ -73,7 +72,7 @@ describe('Socket.IO messaging', function() {
   });
 
   it('should store messages when recipient is offline', (done) => {
-    // Disconnect B so they’re offline
+    // Disconnect B so they're offline
     clientB.disconnect();
 
     clientA = ioClient('http://localhost:4000', { auth: { token: tokenA }});
@@ -85,8 +84,8 @@ describe('Socket.IO messaging', function() {
     clientA.on('connect', () => {
       const payload = {
         messageId:    'msg2',
-        toUserId:     userB.anonId,
-        fromUserId:   userA.anonId,
+        toUserId:     userB._id,
+        fromUserId:   userA._id,
         nonceHex:     '00',
         blockHash:    '00',
         iv:           '00',

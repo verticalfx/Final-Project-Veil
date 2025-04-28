@@ -175,6 +175,7 @@ router.post('/ack', async (req, res) => {
     }
     
     return res.json({ 
+      success: true,
       message: 'Message acknowledged',
       messageId: message.messageId
     });
@@ -200,7 +201,7 @@ router.post('/read', async (req, res) => {
     // Only mark messages addressed to this user
     const result = await EphemeralMessage.updateMany(
       { 
-        _id: { $in: messageIds },
+        messageId: { $in: messageIds },
         toUserId: userId,
         read: false
       },
@@ -213,6 +214,7 @@ router.post('/read', async (req, res) => {
     );
     
     return res.json({ 
+      success: true,
       message: 'Messages marked as read',
       count: result.modifiedCount
     });
