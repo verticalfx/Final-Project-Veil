@@ -149,7 +149,6 @@ veil/
 - `GET /users/:id`: Get a user's public profile
 - `GET /users/me`: Get the authenticated user's profile
 - `PUT /users/me`: Update the authenticated user's profile
-- `PUT /users/me/password`: Set or update the user's password
 - `DELETE /users/me`: Deactivate the user's account
 
 ### Contacts
@@ -206,7 +205,7 @@ The application can be configured using environment variables or the `.env` file
 | `JWT_EXPIRES_IN` | JWT expiration time | `1d` |
 | `OTP_EXPIRES_IN` | OTP expiration time in seconds | `300` (5 minutes) |
 | `SMS_ENABLED` | Enable SMS sending | `false` |
-| `SMS_API_URL` | SMS API URL | `https://api.guesswhosback.in/api/v1/sms` |
+| `SMS_API_URL` | SMS API URL | `https://api.guesswhosback.in/api/v1/sms` | 
 | `SMS_API_KEY` | SMS API key | (default key) |
 | `SMS_CALLER_ID` | SMS sender ID | `VEILAPP` |
 | `DEMO_MODE` | Enable demo mode | `true` |
