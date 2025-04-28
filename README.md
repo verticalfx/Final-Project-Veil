@@ -56,8 +56,8 @@ The application consists of two main components:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/veil.git
-   cd veil
+   git clone https://github.com/verticalfx/Final-Project-Veil.git
+   cd Final-Project-Veil
    ```
 
 2. Install backend dependencies:
