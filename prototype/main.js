@@ -96,6 +96,36 @@ function setupIpcHandlers() {
     return app.getVersion();
   });
   
+  // Persist arbitrary text data to a log file under userData
+  ipcMain.handle('save-data', async (_e, key, data) => {
+    try {
+      if (!key) throw new Error('Invalid key');
+      // Sanitize again on main side
+      const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const dir = app.getAppPath();
+      const filePath = path.join(dir, `${safeKey}.log`);
+      fs.appendFileSync(filePath, data + '\n', { encoding: 'utf8' });
+      return true;
+    } catch (err) {
+      console.error('save-data IPC error:', err);
+      return false;
+    }
+  });
+
+  // Read the entire log back (optional)
+  ipcMain.handle('load-data', async (_e, key) => {
+    try {
+      const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const dir = app.getAppPath();
+      const filePath = path.join(dir, `${safeKey}.log`);
+      if (!fs.existsSync(filePath)) return '';
+      return fs.readFileSync(filePath, 'utf8');
+    } catch (err) {
+      console.error('load-data IPC error:', err);
+      return '';
+    }
+  });
+  
   // Add more IPC handlers as needed
 }
 
@@ -119,3 +149,4 @@ app.on('web-contents-created', (event, contents) => {
     webPreferences.contextIsolation = true;
   });
 });
+

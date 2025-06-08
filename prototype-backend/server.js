@@ -15,6 +15,7 @@ const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { logPerf } = require('./utils/perfLogger');
 
 // Import configuration
 const config = require('./config');
@@ -233,6 +234,10 @@ io.on('connection', (socket) => {
       if (recipientSocket && recipientSocket.connected) {
         // Relay immediately
         console.log('Recipient is online, relaying message immediately');
+        if (encryptedData.t0Epoch) {
+          const rtt = Date.now() - encryptedData.t0Epoch;
+          logPerf({ type: 'relay', rttMs: rtt, messageId: encryptedData.messageId, ts: new Date().toISOString() });
+        }
         recipientSocket.emit('ephemeral_message', encryptedData);
         
         // Send delivery confirmation back to sender
@@ -256,13 +261,14 @@ io.on('connection', (socket) => {
           iv: encryptedData.iv,
           authTag: encryptedData.authTag,
           ciphertext: encryptedData.ciphertext,
-          time: encryptedData.time || new Date().toISOString()
+          time: encryptedData.time || new Date().toISOString(),
+          t0Epoch: encryptedData.t0Epoch || null
         });
         
         msg.save().then(() => {
           console.log('Ephemeral message stored for offline user:', encryptedData.toUserId);
           
-          // Send storage confirmation back to sender
+          logPerf({ type: 'queued', messageId: encryptedData.messageId, ts: new Date().toISOString() });
           socket.emit('message_stored', {
             messageId: encryptedData.messageId,
             toUserId: encryptedData.toUserId,
@@ -321,12 +327,25 @@ io.on('connection', (socket) => {
  */
 async function broadcastStatus(userId, isOnline) {
   console.log(`Broadcasting status for ${userId}: ${isOnline ? 'online' : 'offline'}`);
-  
+
+  const User = require('./models/User');
+
+  // Helper – works with either Mongo ObjectId or anonId ("888XXXXXXX")
+  async function resolveUser(id) {
+    if (typeof id === 'string' && /^888\d{7}$/.test(id)) {
+      return User.findOne({ anonId: id });
+    }
+    // Otherwise assume it's a real ObjectId (or castable)
+    try {
+      return await User.findById(id);
+    } catch (e) {
+      // CastError – treat as null
+      return null;
+    }
+  }
+
   try {
-    const User = require('./models/User');
-    
-    // Get the user to check their blocked list
-    const user = await User.findById(userId);
+    const user = await resolveUser(userId);
     if (!user) {
       console.error(`User ${userId} not found when broadcasting status`);
       return;
@@ -343,7 +362,7 @@ async function broadcastStatus(userId, isOnline) {
           }
           
           // Check if the status-changing user is blocked by this user
-          const otherUser = await User.findById(socketUserId);
+          const otherUser = await resolveUser(socketUserId);
           if (otherUser && otherUser.blockedUsers && 
               otherUser.blockedUsers.some(id => id.toString() === userId)) {
             console.log(`Not sending status update to user ${socketUserId} who blocked ${userId}`);
@@ -438,13 +457,19 @@ async function deliverPendingMessages(userId, socket) {
           iv: msg.iv,
           authTag: msg.authTag,
           ciphertext: msg.ciphertext,
-          time: msg.time
+          time: msg.time,
+          t0Epoch: msg.t0Epoch || null
         });
         
         // Mark as delivered
         msg.delivered = true;
         msg.deliveredAt = new Date();
         await msg.save();
+
+        if (msg.t0Epoch) {
+          const rtt = Date.now() - msg.t0Epoch;
+          logPerf({ type: 'flush', rttMs: rtt, messageId: msg.messageId, ts: new Date().toISOString() });
+        }
       }
       
       console.log(`Marked ${pendingMessages.length} messages as delivered for user ${userId}`);

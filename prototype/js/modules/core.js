@@ -375,6 +375,41 @@ function initSocket() {
     }
   });
 
+  // Instrumentation: handle delivery ack and compute RTT
+  socket.on('message_delivered', (data) => {
+    console.log('Message delivered:', data);
+    if (data && data.messageId && window._msgLatency && window._msgLatency[data.messageId]) {
+      const rtt = Date.now() - window._msgLatency[data.messageId];
+      delete window._msgLatency[data.messageId];
+      console.log(`RTT for message ${data.messageId}: ${rtt.toFixed(1)} ms`);
+      // Persist to perf log
+      if (window.electron && window.electron.saveData) {
+        const line = JSON.stringify({
+          type: 'delivery',
+          messageId: data.messageId,
+          rttMs: Number(rtt.toFixed(1)),
+          timestamp: new Date().toISOString()
+        });
+        window.electron.saveData('perf_log', line).then((ok)=>{
+          if(!ok){
+            console.warn('Perf log write failed via IPC, falling back to localStorage');
+            const arr = JSON.parse(localStorage.getItem('perf_log')||'[]');
+            arr.push(line);
+            localStorage.setItem('perf_log', JSON.stringify(arr));
+          } else {
+            console.log('Perf log entry saved');
+          }
+        }).catch(err=>{
+          console.error('saveData IPC error', err);
+        });
+      }
+    }
+    // optional toast
+    if (typeof window.showToast === 'function') {
+      window.showToast('Message delivered', 'success', 2000);
+    }
+  });
+
   // Make socket available globally
   window.socket = socket;
 }

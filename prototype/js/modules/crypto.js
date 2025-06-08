@@ -41,6 +41,7 @@ const deriveEphemeralKey = async (blockHash, nonceHex) => {
 /**
  * Get the ephemeral key as a hex string
  */
+
 async function getEphemeralKeyHex(blockHash, nonceHex) {
     const derivedKey = await deriveEphemeralKey(blockHash, nonceHex);
     

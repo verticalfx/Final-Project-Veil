@@ -241,6 +241,9 @@ async function sendEphemeralMessage(contactId, text) {
 
         // Prepare the message payload
         console.log('SEND-CHECKPOINT 8: Preparing message payload');
+        const t0Epoch = Date.now(); // epoch ms for server/client parity
+        if (!window._msgLatency) window._msgLatency = {};
+        window._msgLatency[messageId] = t0Epoch;
         const messagePayload = {
             messageId: messageId,
             toUserId: contactId,
@@ -249,7 +252,8 @@ async function sendEphemeralMessage(contactId, text) {
             iv: encryptedData.iv,
             authTag: encryptedData.authTag,
             ciphertext: encryptedData.encryptedText,
-            time: new Date().toISOString()
+            time: new Date().toISOString(),
+            t0Epoch // include client-side epoch timestamp for latency measurement
         };
         console.log('SEND-CHECKPOINT 9: Message payload prepared', { payloadKeys: Object.keys(messagePayload) });
 
