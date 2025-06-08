@@ -18,55 +18,45 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initPhoneInput() {
-  const countrySelect = document.getElementById('countrySelect');
   const phoneInput = document.getElementById('phoneInput');
+  const countryTrigger = document.getElementById('countrySelectTrigger');
+  const selectedFlag = document.getElementById('selectedFlag');
+  const selectedCountryCode = document.getElementById('selectedCountryCode');
   
-  if (!countrySelect || !phoneInput) return;
-  
-  // Clear existing options
-  countrySelect.innerHTML = '';
-  
-  // Populate country select with flags and names
-  phoneCountryList.forEach(country => {
-    const option = document.createElement('option');
-    option.value = country.dialCode;
-    option.dataset.code = country.code;
-    option.dataset.pattern = country.pattern;
-    option.textContent = `${country.name}`;
-    countrySelect.appendChild(option);
-  });
+  if (!phoneInput || !countryTrigger || !selectedFlag || !selectedCountryCode) {
+    console.error('Phone input elements not found');
+    return;
+  }
   
   // Set default country (e.g., United Kingdom)
   const defaultCountry = phoneCountryList.find(c => c.code === 'GB');
   if (defaultCountry) {
-    countrySelect.value = defaultCountry.dialCode;
+    updateSelectedCountry(defaultCountry);
     phoneInput.value = '+' + defaultCountry.dialCode + ' ';
-    phoneInput.dataset.pattern = defaultCountry.pattern;
   }
   
-  // Add event listeners
-  countrySelect.addEventListener('change', onCountryChange);
-  phoneInput.addEventListener('input', onPhoneInput);
-  phoneInput.addEventListener('keydown', preventNonNumeric);
-  phoneInput.addEventListener('focus', onPhoneInputFocus);
-  phoneInput.addEventListener('blur', onPhoneInputBlur);
-  
-  // Style the select with a flag
-  updateCountrySelectStyle();
-  
-  // Create a custom dropdown for better UX
+  // Create custom dropdown
   createCustomDropdown();
   
   // Add clear button functionality
   addClearButtonFunctionality();
 }
 
-// Create a custom dropdown for country selection
-function createCustomDropdown() {
-  const countrySelect = document.getElementById('countrySelect');
-  const phoneInputContainer = document.getElementById('phoneInputContainer');
+function updateSelectedCountry(country) {
+  const selectedFlag = document.getElementById('selectedFlag');
+  const selectedCountryCode = document.getElementById('selectedCountryCode');
   
-  if (!countrySelect || !phoneInputContainer) return;
+  if (selectedFlag && selectedCountryCode) {
+    selectedFlag.style.backgroundImage = `url(https://flagcdn.com/24x18/${country.code.toLowerCase()}.png)`;
+    selectedCountryCode.textContent = '+' + country.dialCode;
+  }
+}
+
+function createCustomDropdown() {
+  const phoneInputContainer = document.getElementById('phoneInputContainer');
+  const countryTrigger = document.getElementById('countrySelectTrigger');
+  
+  if (!phoneInputContainer || !countryTrigger) return;
   
   // Create dropdown container
   const dropdown = document.createElement('div');
@@ -90,56 +80,104 @@ function createCustomDropdown() {
   countryItemsContainer.id = 'countryItems';
   
   phoneCountryList.forEach(country => {
-    const item = document.createElement('div');
-    item.className = 'country-item';
-    item.dataset.dialCode = country.dialCode;
-    item.dataset.code = country.code;
-    
-    const flag = document.createElement('div');
-    flag.className = 'country-item-flag';
-    flag.style.backgroundImage = `url(https://flagcdn.com/24x18/${country.code.toLowerCase()}.png)`;
-    
-    const name = document.createElement('div');
-    name.className = 'country-item-name';
-    name.textContent = country.name;
-    
-    const code = document.createElement('div');
-    code.className = 'country-item-code';
-    code.textContent = `+${country.dialCode}`;
-    
-    item.appendChild(flag);
-    item.appendChild(name);
-    item.appendChild(code);
-    
-    item.addEventListener('click', () => {
-      selectCountryFromDropdown(country.dialCode);
-      dropdown.classList.remove('show');
-    });
-    
+    const item = createCountryItem(country);
     countryItemsContainer.appendChild(item);
   });
   
   dropdown.appendChild(countryItemsContainer);
   phoneInputContainer.appendChild(dropdown);
   
-  // Toggle dropdown on flag click
-  const flagContainer = document.querySelector('.country-select-container');
-  if (flagContainer) {
-    flagContainer.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dropdown.classList.toggle('show');
-      if (dropdown.classList.contains('show')) {
-        searchInput.focus();
-      }
-    });
-  }
+  // Toggle dropdown on trigger click
+  countryTrigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dropdown = document.getElementById('countryDropdown');
+    const isActive = countryTrigger.classList.contains('active');
+    
+    if (isActive) {
+      closeDropdown();
+    } else {
+      openDropdown();
+    }
+  });
   
   // Close dropdown when clicking outside
   document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target) && !flagContainer.contains(e.target)) {
-      dropdown.classList.remove('show');
+    if (!e.target.closest('#countrySelectTrigger') && !e.target.closest('#countryDropdown')) {
+      closeDropdown();
     }
   });
+}
+
+function createCountryItem(country) {
+  const item = document.createElement('div');
+  item.className = 'country-item';
+  
+  const flag = document.createElement('div');
+  flag.className = 'country-item-flag';
+  flag.style.backgroundImage = `url(https://flagcdn.com/24x18/${country.code.toLowerCase()}.png)`;
+  
+  const name = document.createElement('div');
+  name.className = 'country-item-name';
+  name.textContent = country.name;
+  
+  const code = document.createElement('div');
+  code.className = 'country-item-code';
+  code.textContent = '+' + country.dialCode;
+  
+  item.appendChild(flag);
+  item.appendChild(name);
+  item.appendChild(code);
+  
+  item.addEventListener('click', () => {
+    selectCountry(country);
+    closeDropdown();
+  });
+  
+  return item;
+}
+
+function openDropdown() {
+  const dropdown = document.getElementById('countryDropdown');
+  const trigger = document.getElementById('countrySelectTrigger');
+  if (dropdown && trigger) {
+    dropdown.classList.add('show');
+    trigger.classList.add('active');
+    
+    // Focus search input
+    const searchInput = dropdown.querySelector('input');
+    if (searchInput) {
+      searchInput.focus();
+    }
+  }
+}
+
+function closeDropdown() {
+  const dropdown = document.getElementById('countryDropdown');
+  const trigger = document.getElementById('countrySelectTrigger');
+  if (dropdown && trigger) {
+    dropdown.classList.remove('show');
+    trigger.classList.remove('active');
+  }
+}
+
+function selectCountry(country) {
+  updateSelectedCountry(country);
+  
+  const phoneInput = document.getElementById('phoneInput');
+  if (phoneInput) {
+    // Preserve the national number if it exists
+    const currentNumber = phoneInput.value;
+    const currentDialCode = extractDialCode(currentNumber);
+    let nationalNumber = '';
+    
+    if (currentDialCode) {
+      nationalNumber = currentNumber.substring(currentDialCode.length + 1).trim();
+    }
+    
+    // Update the phone input with the new dial code and preserve the national number
+    phoneInput.value = '+' + country.dialCode + (nationalNumber ? ' ' + nationalNumber : ' ');
+    phoneInput.focus();
+  }
 }
 
 // Filter countries in dropdown
@@ -157,46 +195,6 @@ function filterCountries(e) {
       item.style.display = 'none';
     }
   });
-}
-
-// Select country from dropdown
-function selectCountryFromDropdown(dialCode) {
-  const countrySelect = document.getElementById('countrySelect');
-  if (!countrySelect) return;
-  
-  countrySelect.value = dialCode;
-  onCountryChange();
-}
-
-// When country select changes
-function onCountryChange() {
-  const countrySelect = document.getElementById('countrySelect');
-  const phoneInput = document.getElementById('phoneInput');
-  
-  if (!countrySelect || !phoneInput) return;
-  
-  const selectedOption = countrySelect.options[countrySelect.selectedIndex];
-  const dialCode = selectedOption.value;
-  const pattern = selectedOption.dataset.pattern;
-  
-  // Get the current input without the dial code
-  const currentInput = phoneInput.value;
-  const currentDialCode = extractDialCode(currentInput);
-  let nationalNumber = '';
-  
-  if (currentDialCode) {
-    nationalNumber = currentInput.substring(currentDialCode.length + 1).trim();
-  }
-  
-  // Update phone input with new dial code and keep the national number
-  phoneInput.value = '+' + dialCode + (nationalNumber ? ' ' + nationalNumber : ' ');
-  phoneInput.dataset.pattern = pattern;
-  
-  // Update the select style with the flag
-  updateCountrySelectStyle();
-  
-  // Focus the phone input
-  phoneInput.focus();
 }
 
 // Extract dial code from input
@@ -888,4 +886,106 @@ function addPhoneInputStyles() {
     }
   `;
   document.head.appendChild(styleEl);
-} 
+}
+
+// Add validation function
+function validatePhoneNumber(phoneNumber) {
+    // Remove any non-digit characters
+    const digitsOnly = phoneNumber.replace(/\D/g, '');
+    return digitsOnly.length >= 10;
+}
+
+// Add this to the existing phone input setup
+function setupPhoneInput() {
+    const phoneInput = document.getElementById('phoneInput');
+    const countrySelect = document.getElementById('countrySelect');
+    const phoneClearBtn = document.getElementById('phoneClearBtn');
+    const phoneError = document.getElementById('phoneError');
+
+    if (!phoneInput || !countrySelect) {
+        console.error('Phone input elements not found');
+        return;
+    }
+
+    // Clear button functionality
+    if (phoneClearBtn) {
+        phoneClearBtn.addEventListener('click', () => {
+            phoneInput.value = '';
+            phoneClearBtn.classList.add('hidden');
+            phoneInput.focus();
+            phoneError.textContent = '';
+        });
+    }
+
+    // Input handling
+    phoneInput.addEventListener('input', (e) => {
+        const value = e.target.value;
+        
+        // Show/hide clear button
+        if (phoneClearBtn) {
+            phoneClearBtn.classList.toggle('hidden', !value);
+        }
+        
+        // Clear error on input
+        phoneError.textContent = '';
+    });
+
+    // Prevent form submission on enter
+    phoneInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+        }
+    });
+}
+
+// Modify the startPhoneLogin function
+window.startPhoneLogin = function() {
+    const phoneInput = document.getElementById('phoneInput');
+    const countrySelect = document.getElementById('countrySelect');
+    const phoneError = document.getElementById('phoneError');
+
+    if (!phoneInput || !countrySelect) {
+        console.error('Phone input elements not found');
+        return;
+    }
+
+    const phoneNumber = phoneInput.value.trim();
+    const countryCode = countrySelect.value;
+
+    // Validate phone number
+    if (!phoneNumber) {
+        phoneError.textContent = 'Please enter a phone number';
+        phoneInput.focus();
+        return;
+    }
+
+    if (!validatePhoneNumber(phoneNumber)) {
+        phoneError.textContent = 'Phone number must be at least 10 digits';
+        phoneInput.focus();
+        return;
+    }
+
+    // If validation passes, proceed with login
+    const fullPhoneNumber = countryCode + phoneNumber;
+    console.log('Starting phone login with:', fullPhoneNumber);
+
+    // Show demo mode notice
+    const demoModeNotice = document.querySelector('#stepPhone .bg-dark-tertiary');
+    if (demoModeNotice) {
+        demoModeNotice.classList.remove('hidden');
+    }
+
+    // Hide phone step and show OTP step
+    document.getElementById('stepPhone').classList.add('hidden');
+    document.getElementById('stepOTP').classList.remove('hidden');
+
+    // Update progress indicator
+    document.querySelector('[data-step="phone"]').classList.add('completed');
+    document.querySelector('[data-step="verification"]').classList.add('active');
+};
+
+// Initialize phone input on load
+document.addEventListener('DOMContentLoaded', () => {
+    setupPhoneInput();
+    populateCountrySelect();
+}); 

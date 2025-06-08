@@ -1219,3 +1219,168 @@ function showContactsSkeletonLoading() {
     recentChatsList.innerHTML = skeletonHTML;
 }
 
+// Add debounce utility
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Global search handler
+window.handleGlobalSearch = debounce(async (event) => {
+    const query = event.target.value.trim();
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const resultsContainer = document.getElementById('searchResultsContainer');
+    const contactResults = document.getElementById('contactResults');
+    const globalResults = document.getElementById('globalResults');
+
+    // Show/hide clear button
+    clearBtn.classList.toggle('hidden', !query);
+
+    if (!query) {
+        resultsContainer.classList.add('hidden');
+        return;
+    }
+
+    // Show container
+    resultsContainer.classList.remove('hidden');
+
+    // Search local contacts
+    const matchedContacts = window.AppState.contacts.filter(contact => 
+        contact.name?.toLowerCase().includes(query.toLowerCase()) ||
+        contact.phoneNumber?.includes(query) ||
+        contact.anonId?.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 3);
+
+    // Render contact results
+    if (matchedContacts.length > 0) {
+        contactResults.innerHTML = matchedContacts.map(contact => `
+            <div class="p-3 hover:bg-dark-secondary cursor-pointer transition-colors flex items-center" 
+                 onclick="selectContact('${contact._id}')">
+                <div class="profile-pic profile-pic-sm mr-3">
+                    ${contact.pfp ? 
+                        `<img src="${contact.pfp}" alt="${contact.name}" class="w-full h-full object-cover rounded-full">` :
+                        `<div class="w-full h-full flex items-center justify-center bg-purple-primary rounded-full">
+                            ${contact.name.charAt(0).toUpperCase()}
+                         </div>`
+                    }
+                </div>
+                <div class="flex-1">
+                    <div class="font-medium">${contact.name}</div>
+                    <div class="text-sm text-gray-400">
+                        ${contact.anonId || contact.phoneNumber || 'No contact info'}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        contactResults.innerHTML = `
+            <div class="p-3 text-sm text-gray-400 text-center">
+                No matching contacts
+            </div>
+        `;
+    }
+
+    // Global search
+    try {
+        // Get current user ID from AppState
+        const userId = window.AppState.currentUser?._id;
+        if (!userId) {
+            throw new Error('User not logged in');
+        }
+
+        // Use the correct endpoint with proper parameters
+        const response = await window.apiUtils.apiGet(
+            `${CONTACTS_API_URL}/search?userId=${userId}&searchTerm=${encodeURIComponent(query)}`
+        );
+        
+        if (response.users?.length > 0) {
+            const filteredUsers = response.users
+                .filter(user => !matchedContacts.some(contact => contact._id === user._id))
+                .slice(0, 3);
+
+            if (filteredUsers.length > 0) {
+                globalResults.innerHTML = filteredUsers.map(user => `
+                    <div class="p-3 hover:bg-dark-secondary cursor-pointer transition-colors flex items-center" 
+                         onclick="showUserProfileFromSearch('${user._id}', '${user.username}', '${user.phoneNumber || ''}', '${user.bio || ''}', '${user.profilePicture || ''}')">
+                        <div class="profile-pic profile-pic-sm mr-3">
+                            ${user.profilePicture ? 
+                                `<img src="${user.profilePicture}" alt="${user.username}" class="w-full h-full object-cover rounded-full">` :
+                                `<div class="w-full h-full flex items-center justify-center bg-purple-primary rounded-full">
+                                    ${user.username.charAt(0).toUpperCase()}
+                                 </div>`
+                            }
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">${user.username}</div>
+                            <div class="text-sm text-gray-400">
+                                ${user.anonId || user.phoneNumber || 'No contact info'}
+                            </div>
+                        </div>
+                        <button class="px-3 py-1 bg-purple-primary text-white rounded-full text-sm hover:bg-purple-secondary transition-colors">
+                            View Profile
+                        </button>
+                    </div>
+                `).join('');
+            } else {
+                globalResults.innerHTML = `
+                    <div class="p-3 text-sm text-gray-400 text-center">
+                        No additional users found
+                    </div>
+                `;
+            }
+        } else {
+            globalResults.innerHTML = `
+                <div class="p-3 text-sm text-gray-400 text-center">
+                    No users found
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Global search error:', error);
+        globalResults.innerHTML = `
+            <div class="p-3 text-sm text-red-400 text-center">
+                ${error.message === 'User not logged in' ? 'Please log in to search users' : 'Error searching for users'}
+            </div>
+        `;
+    }
+}, 300);
+
+// Clear search
+window.clearSearch = () => {
+    const searchInput = document.getElementById('contactSearchInput');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const resultsContainer = document.getElementById('searchResultsContainer');
+    
+    searchInput.value = '';
+    clearBtn.classList.add('hidden');
+    resultsContainer.classList.add('hidden');
+    
+    // Restore normal contact list view
+    refreshContactsUI();
+};
+
+// Add click event listener for clear button
+document.addEventListener('DOMContentLoaded', () => {
+    const clearBtn = document.getElementById('clearSearchBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', window.clearSearch);
+    }
+    
+    // Close search results when clicking outside
+    document.addEventListener('click', (e) => {
+        const searchContainer = document.getElementById('searchResultsContainer');
+        const searchInput = document.getElementById('contactSearchInput');
+        
+        if (!searchContainer?.contains(e.target) && e.target !== searchInput) {
+            searchContainer?.classList.add('hidden');
+        }
+    });
+});
+

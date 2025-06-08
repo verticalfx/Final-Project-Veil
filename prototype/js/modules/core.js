@@ -209,6 +209,16 @@ const AppState = {
     msg.status = newStatus;
     this.saveToLocalStorage();
     return true;
+  },
+
+  reset() {
+    this.currentUser = null;
+    this.token = null;
+    this.contacts = [];
+    this.activeContactId = null;
+    this.sidebarMode = 'chats';
+    this.isWindowFocused = false;
+    this.saveToLocalStorage();
   }
 };
 
@@ -623,6 +633,132 @@ export {
   closeProfileModal,
   initSocket,
   initApp
+};
+
+/**
+ * Handle logout
+ */
+window.handleLogout = async function() {
+    try {
+        // Clear all app state
+        window.AppState.reset();
+        window.currentUser = null;
+        window.contacts = [];
+        window.activeContactId = null;
+        window.authState = {
+            phoneNumber: '',
+            username: '',
+            bio: '',
+            phoneNotRegistered: false,
+            requestToken: null
+        };
+
+        // Clear local storage and session storage
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Disconnect socket if it exists
+        if (window.socket) {
+            window.socket.disconnect();
+            window.socket = null;
+        }
+
+        // Reset UI elements
+        const chatScreen = document.getElementById('chatScreen');
+        const onboardingContainer = document.getElementById('onboardingContainer');
+        const stepPhone = document.getElementById('stepPhone');
+        const stepOTP = document.getElementById('stepOTP');
+        const stepName = document.getElementById('stepName');
+        const stepBio = document.getElementById('stepBio');
+
+        // Hide chat screen
+        if (chatScreen) chatScreen.classList.add('hidden');
+
+        // Show onboarding container
+        if (onboardingContainer) {
+            onboardingContainer.classList.remove('hidden');
+        }
+
+        // Reset all steps to hidden first
+        [stepOTP, stepName, stepBio].forEach(step => {
+            if (step) step.classList.add('hidden');
+        });
+
+        // Show phone step last to ensure proper display
+        if (stepPhone) {
+            stepPhone.classList.remove('hidden');
+            // Clear and reset phone input
+            const phoneInput = document.getElementById('phoneInput');
+            if (phoneInput) {
+                phoneInput.value = '';
+                // Focus the input after a short delay to ensure UI is ready
+                setTimeout(() => phoneInput.focus(), 100);
+            }
+        }
+
+        // Reset all OTP inputs
+        const otpInputs = document.querySelectorAll('.otp-input');
+        otpInputs.forEach(input => {
+            input.value = '';
+            input.classList.remove('border-purple-primary');
+        });
+        const otpHiddenInput = document.getElementById('otpInput');
+        if (otpHiddenInput) otpHiddenInput.value = '';
+
+        // Reset country select to default
+        const countrySelect = document.getElementById('countrySelect');
+        if (countrySelect) {
+            const defaultCountry = window.phoneCountryList?.find(c => c.code === 'GB');
+            if (defaultCountry) {
+                countrySelect.value = defaultCountry.dialCode;
+            }
+        }
+
+        // Clear any error messages
+        const errorElements = document.querySelectorAll('.text-red-400, .text-red-500');
+        errorElements.forEach(el => el.textContent = '');
+
+        // Reset progress indicator
+        const progressSteps = document.querySelectorAll('.progress-step');
+        if (progressSteps.length) {
+            progressSteps.forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            // Set first step as active
+            progressSteps[0].classList.add('active');
+        }
+
+        // Reset any modals that might be open
+        const modals = document.querySelectorAll('.modal-bg');
+        modals.forEach(modal => {
+            modal.classList.add('hidden');
+            modal.classList.remove('active');
+        });
+
+        // Clear any search inputs
+        const searchInputs = document.querySelectorAll('input[type="search"], input[type="text"]');
+        searchInputs.forEach(input => {
+            input.value = '';
+        });
+
+        // Show success toast
+        window.Toast.fire({
+            icon: 'success',
+            title: 'Logged out successfully'
+        });
+
+        // Force a page reload to ensure clean state
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+
+    } catch (error) {
+        console.error('Error during logout:', error);
+        window.Toast.fire({
+            icon: 'error',
+            title: 'Error logging out'
+        });
+    }
 }; 
 
 

@@ -101,11 +101,10 @@
                         Your phone number
                     </label>
                     <div id="phoneInputContainer" class="phone-input-container">
-                        <div class="phone-input-wrapper">
-                            <div class="country-select-container">
-                                <select id="countrySelect" class="country-select">
-                                    <!-- Will be populated by phone-input.js -->
-                                </select>
+                        <div class="phone-input-wrapper bg-dark-tertiary rounded-lg border border-dark-tertiary focus-within:border-purple-primary transition-all duration-200">
+                            <div class="country-select-container" id="countrySelectTrigger">
+                                <div id="selectedFlag" class="country-flag"></div>
+                                <div id="selectedCountryCode" class="selected-country-code text-white text-sm"></div>
                                 <div class="select-arrow">
                                     <i class="fas fa-chevron-down text-xs"></i>
                                 </div>
@@ -307,11 +306,34 @@
                 <!-- Search -->
                 <div class="p-4">
                     <div class="relative">
-                        <input id="contactSearchInput" type="text" placeholder="Search contacts..." 
-                               class="w-full bg-dark-tertiary text-white rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-primary transition-all duration-200"
-                               oninput="searchContacts()">
-                        <div class="absolute left-3 top-2.5 text-gray-400">
+                        <input id="contactSearchInput" type="text" 
+                               placeholder="Search contacts or find users..." 
+                               class="w-full bg-dark-tertiary text-white rounded-lg py-2.5 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-purple-primary transition-all duration-200"
+                               oninput="handleGlobalSearch(event)">
+                        <div class="absolute left-3 top-3 text-gray-400">
                             <i class="fas fa-search"></i>
+                        </div>
+                        <button id="clearSearchBtn" class="absolute right-3 top-3 text-gray-400 hover:text-white hidden">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Search Results Container -->
+                    <div id="searchResultsContainer" class="absolute left-0 right-0 mt-2 mx-4 bg-dark-tertiary rounded-lg shadow-lg border border-dark-tertiary overflow-hidden z-50 hidden">
+                        <!-- Contacts Section -->
+                        <div id="contactSearchResults" class="border-b border-dark-tertiary">
+                            <div class="px-4 py-2 text-sm text-gray-400 bg-dark-secondary">
+                                Contacts
+                            </div>
+                            <div id="contactResults" class="max-h-48 overflow-y-auto"></div>
+                        </div>
+                        
+                        <!-- Global Users Section -->
+                        <div id="globalSearchResults">
+                            <div class="px-4 py-2 text-sm text-gray-400 bg-dark-secondary">
+                                Global Search
+                            </div>
+                            <div id="globalResults" class="max-h-48 overflow-y-auto"></div>
                         </div>
                     </div>
                 </div>
@@ -398,15 +420,14 @@
                     
                     <!-- Message Input -->
                     <div class="message-input-container p-3 border-t border-dark-tertiary bg-dark-secondary">
-                        <!-- Message Textarea -->
-                        <div class="flex items-end space-x-2">
-                            <div class="flex-1 relative">
+                        <div class="flex items-end gap-2 w-full max-w-full">
+                            <div class="flex-1 relative min-w-0">
                                 <textarea id="messageInput" class="message-input w-full resize-none" 
                                           placeholder="Type a message..." rows="1"></textarea>
                             </div>
                             
                             <!-- Send Button -->
-                            <button id="sendMessageBtn" class="p-2.5 bg-purple-primary text-white rounded-full flex-shrink-0 hover:bg-purple-dark transition-all duration-200">
+                            <button id="sendMessageBtn" class="p-2.5 bg-purple-primary text-white rounded-full flex-shrink-0 hover:bg-purple-secondary active:transform active:scale-95 transition-all duration-200">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>

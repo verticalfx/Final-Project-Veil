@@ -12,10 +12,8 @@ import { contactsState, renderChatMessages, fetchUserById } from './shared.js';
 function initializeMessageInput() {
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendMessageBtn');
-    const emojiButton = document.getElementById('emojiButton');
-    const emojiPicker = document.getElementById('emojiPicker');
     
-    if (!messageInput || !sendButton || !emojiButton || !emojiPicker) {
+    if (!messageInput || !sendButton) {
         console.error('Message input elements not found');
         return;
     }
@@ -42,19 +40,24 @@ function initializeMessageInput() {
     messageInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            sendMessage();
+            const trimmedMessage = this.value.trim();
+            if (trimmedMessage) {
+                sendMessage();
+            }
         }
     });
     
     // Send button click handler
     sendButton.addEventListener('click', function() {
-        sendMessage();
+        const trimmedMessage = messageInput.value.trim();
+        if (trimmedMessage) {
+            sendMessage();
+        }
     });
     
-    
+    // Focus input when chat is opened
+    messageInput.focus();
 }
-
-
 
 /**
  * Send a message
@@ -97,8 +100,8 @@ async function sendMessage() {
         // Generate a message ID before sending
         const messageId = generateUUID();
         
-        // Create a message object using AppState.currentUser
-        const message = {
+        // Create a temporary message object for immediate display
+        const tempMessage = {
             _id: messageId,
             from: window.AppState.currentUser._id,
             to: activeContactId,
@@ -107,8 +110,8 @@ async function sendMessage() {
             status: 'sending'
         };
 
-        // Add message to state immediately for instant feedback
-        window.AppState.addMessage(activeContactId, message);
+        // Add temporary message to state for instant feedback
+        window.AppState.addMessage(activeContactId, tempMessage);
         
         // Ensure chat container is visible and empty chat placeholder is hidden
         const chatContainer = document.getElementById('chatContainer');
@@ -116,26 +119,33 @@ async function sendMessage() {
         if (chatContainer) chatContainer.classList.remove('hidden');
         if (emptyChatPlaceholder) emptyChatPlaceholder.classList.add('hidden');
         
-        // Render messages to show the new message with animation
+        // Render messages to show the temporary message
         renderChatMessages();
+        
         // Ensure Chats tab updates immediately
         if (typeof window.refreshContactsUI === 'function') {
             window.refreshContactsUI();
         }
 
-        // Send the ephemeral message
+        // Send the ephemeral message and get the result
         const result = await sendEphemeralMessage(activeContactId, text);
         
-        // Update message status to sent
+        // Update message with encryption details and status
         const updatedMessage = {
-            ...message,
-            status: 'sent'
+            ...tempMessage,
+            status: 'sent',
+            blockHash: result.blockHash,
+            nonceHex: result.nonceHex,
+            iv: result.iv,
+            authTag: result.authTag,
+            ciphertext: result.ciphertext,
+            time: result.time || tempMessage.time
         };
         
-        // Update the message in state
+        // Update the message in state with encryption details
         window.AppState.addMessage(activeContactId, updatedMessage);
         
-        // Re-render messages to update status
+        // Re-render messages to update status and encryption details
         renderChatMessages();
 
         // Setup listeners for status updates
@@ -229,11 +239,12 @@ async function sendEphemeralMessage(contactId, text) {
         // Generate a random nonce (32 bytes)
         console.log('SEND-CHECKPOINT 4: Generating random nonce');
         const nonce = window.secureCrypto.getRandomBytes(32);
-        console.log('SEND-CHECKPOINT 5: Generated nonce', { nonceType: typeof nonce, nonceLength: nonce?.length });
+        const nonceHex = Array.from(nonce).map(b => b.toString(16).padStart(2, '0')).join('');
+        console.log('SEND-CHECKPOINT 5: Generated nonce', { nonceType: typeof nonceHex, nonceLength: nonceHex?.length });
 
         // Encrypt the message
         console.log('SEND-CHECKPOINT 6: Calling ephemeralEncrypt');
-        const encryptedData = await ephemeralEncrypt(blockHash, nonce, text);
+        const encryptedData = await ephemeralEncrypt(blockHash, nonceHex, text);
         console.log('SEND-CHECKPOINT 7: Message encrypted successfully', { encryptedData: !!encryptedData });
 
         // Generate a unique message ID
@@ -244,6 +255,7 @@ async function sendEphemeralMessage(contactId, text) {
         const t0Epoch = Date.now(); // epoch ms for server/client parity
         if (!window._msgLatency) window._msgLatency = {};
         window._msgLatency[messageId] = t0Epoch;
+        
         const messagePayload = {
             messageId: messageId,
             toUserId: contactId,
@@ -268,8 +280,16 @@ async function sendEphemeralMessage(contactId, text) {
         window.socket.emit('ephemeral_message', messagePayload);
         console.log('SEND-CHECKPOINT 11: Message sent via socket.io');
 
-        // Return the message ID for tracking
-        return { messageId };
+        // Return all encryption details and message info
+        return {
+            messageId,
+            blockHash: encryptedData.blockHash,
+            nonceHex: encryptedData.nonce,
+            iv: encryptedData.iv,
+            authTag: encryptedData.authTag,
+            ciphertext: encryptedData.encryptedText,
+            time: messagePayload.time
+        };
     } catch (error) {
         console.error('SEND-CHECKPOINT ERROR: Error in sendEphemeralMessage:', error);
         throw error;

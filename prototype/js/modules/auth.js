@@ -62,6 +62,14 @@ async function startPhoneLogin() {
     const phoneInp = document.getElementById('phoneInput');
     let phoneValue = phoneInp.value.trim();
     
+    // Always ensure phone number starts with +
+    if (!phoneValue.startsWith('+')) {
+        // Get the country code from the select
+        const countrySelect = document.getElementById('countrySelect');
+        const selectedDialCode = countrySelect ? countrySelect.value : '';
+        phoneValue = '+' + (selectedDialCode + phoneValue.replace(/[^\d]/g, ''));
+    }
+    
     // Normalize the phone number by removing spaces, dashes, and parentheses
     // Keep the leading + for international numbers
     const normalizedPhone = phoneValue.startsWith('+') 
@@ -99,12 +107,14 @@ async function startPhoneLogin() {
         
         const data = await res.json();
 
+        // Reset phoneNotRegistered flag before checking response
+        authState.phoneNotRegistered = false;
+
         if (data.needsRegistration) {
             authState.phoneNotRegistered = true;
             showStep('stepName');
             hideStep('stepPhone');
         } else {
-            authState.phoneNotRegistered = false;
             showStep('stepOTP');
             hideStep('stepPhone');
 
@@ -575,10 +585,38 @@ function handleLogout() {
 }
 
 /**
+ * Properly cleanup socket connection
+ */
+function cleanupSocket() {
+    if (window.socket) {
+        // Emit offline status before disconnecting
+        window.socket.emit('userStatus', { online: false });
+        
+        // Remove all listeners to prevent memory leaks
+        window.socket.removeAllListeners();
+        
+        // Disconnect the socket
+        window.socket.disconnect();
+        
+        // Clear the socket instance
+        window.socket = null;
+        
+        console.log('Socket connection cleaned up');
+    }
+}
+
+/**
  * Logout function
  */
 function logout() {
     console.log('Logging out...');
+    
+    // Reset auth state
+    authState.phoneNumber = '';
+    authState.username = '';
+    authState.bio = '';
+    authState.phoneNotRegistered = false;
+    authState.requestToken = null;
     
     // Clear token and user data from sessionStorage using apiUtils if available
     if (window.apiUtils) {
@@ -604,33 +642,125 @@ function logout() {
     window.AppState.contacts = [];
     window.AppState.saveToLocalStorage();
     
-    // Disconnect socket
-    if (window.socket && window.socket.connected) {
-        window.socket.disconnect();
-    }
+    // Cleanup socket connection
+    cleanupSocket();
     
-    // Show login screen
-    document.getElementById('onboardingContainer').classList.remove('hidden');
-    document.getElementById('chatScreen').classList.add('hidden');
-    
-    // Reset UI
-    document.getElementById('phoneInput').value = '';
-    document.getElementById('otpInput').value = '';
-    document.getElementById('usernameInput').value = '';
-    document.getElementById('bioInput').value = '';
-    
-    // Show phone step
-    showStep('phoneStep');
-    hideStep('otpStep');
-    hideStep('usernameStep');
-    hideStep('bioStep');
+    // Reset the UI to initial state
+    resetAuthUI();
     
     console.log('User logged out successfully');
     
-    // Reload the page to ensure a clean state
+    // Show success toast if available
+    if (window.Toast?.fire) {
+        window.Toast.fire({
+            icon: 'success',
+            title: 'Logged out successfully'
+        });
+    } else if (window.Swal?.fire) {
+        window.Swal.fire({
+            icon: 'success',
+            title: 'Logged out successfully',
+            toast: true,
+            position: 'bottom-end',
+            showConfirmButton: false,
+            timer: 3000
+        });
+    }
+    
+    // Reload the page to ensure clean state
     setTimeout(() => {
         window.location.reload();
     }, 500);
+}
+
+/**
+ * Reset the auth UI to its initial state
+ */
+function resetAuthUI() {
+    // Get all the step elements
+    const onboardingContainer = document.getElementById('onboardingContainer');
+    const chatScreen = document.getElementById('chatScreen');
+    const stepPhone = document.getElementById('stepPhone');
+    const stepOTP = document.getElementById('stepOTP');
+    const stepName = document.getElementById('stepName');
+    const stepBio = document.getElementById('stepBio');
+
+    // First, show the onboarding container and hide chat screen
+    if (onboardingContainer) onboardingContainer.classList.remove('hidden');
+    if (chatScreen) chatScreen.classList.add('hidden');
+
+    // Hide all steps except phone
+    [stepOTP, stepName, stepBio].forEach(step => {
+        if (step) step.classList.add('hidden');
+    });
+    if (stepPhone) stepPhone.classList.remove('hidden');
+
+    // Reset country select and phone input
+    const countrySelect = document.getElementById('countrySelect');
+    const phoneInput = document.getElementById('phoneInput');
+    const selectedFlag = document.getElementById('selectedFlag');
+    const selectedCountryCode = document.getElementById('selectedCountryCode');
+
+    // Set default country (GB/44)
+    const defaultCountry = window.phoneCountryList?.find(c => c.code === 'GB') || { code: 'GB', dialCode: '44' };
+    
+    if (countrySelect) {
+        countrySelect.value = defaultCountry.dialCode;
+    }
+    
+    if (selectedFlag) {
+        selectedFlag.className = `flag-icon flag-icon-${defaultCountry.code.toLowerCase()}`;
+    }
+    
+    if (selectedCountryCode) {
+        selectedCountryCode.textContent = `+${defaultCountry.dialCode}`;
+    }
+    
+    if (phoneInput) {
+        // Set the phone input with the country code prefix
+        phoneInput.value = `+${defaultCountry.dialCode} `;
+        // Focus and move cursor to end
+        setTimeout(() => {
+            phoneInput.focus();
+            phoneInput.setSelectionRange(phoneInput.value.length, phoneInput.value.length);
+        }, 100);
+    }
+
+    // Reset OTP inputs
+    const otpInputs = document.querySelectorAll('.otp-input');
+    otpInputs.forEach(input => {
+        input.value = '';
+        input.classList.remove('border-purple-primary');
+    });
+    const otpHiddenInput = document.getElementById('otpInput');
+    if (otpHiddenInput) otpHiddenInput.value = '';
+
+    // Reset username and bio inputs
+    const usernameInput = document.getElementById('regUsername');
+    const bioInput = document.getElementById('regBio');
+    if (usernameInput) usernameInput.value = '';
+    if (bioInput) bioInput.value = '';
+
+    // Clear any error messages
+    const errorElements = document.querySelectorAll('.text-red-400, .text-red-500');
+    errorElements.forEach(el => el.textContent = '');
+
+    // Reset progress indicator
+    const progressSteps = document.querySelectorAll('.progress-step');
+    if (progressSteps.length) {
+        progressSteps.forEach(step => {
+            step.classList.remove('active', 'completed');
+        });
+        // Set first step as active
+        progressSteps[0].classList.add('active');
+    }
+
+    // Reset any modals that might be open
+    const modals = document.querySelectorAll('.modal-bg');
+    modals.forEach(modal => {
+        modal.classList.add('hidden');
+        modal.classList.remove('active');
+    });
 }
 
 // Make functions available globally

@@ -27,6 +27,7 @@ function createWindow() {
     resizable: true,  // Allow resizing for better UX
     minWidth: 800,    // Set minimum dimensions
     minHeight: 600,
+    autoHideMenuBar: true, // Hide the menu bar
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,      // Enable Node integration for this prototype
@@ -35,6 +36,7 @@ function createWindow() {
       worldSafeExecuteJavaScript: true,
       sandbox: false,             // Disable sandbox to allow crypto module
       webSecurity: true,          // Improved security
+      devTools: !app.isPackaged,  // Only enable devTools in development
     },
   });
 
@@ -54,9 +56,9 @@ function createWindow() {
   // Load the index.html file
   win.loadFile(path.join(__dirname, 'index.html'));
 
-  // Open DevTools in development mode
-  if (isDev) {
-    win.webContents.openDevTools();
+  // Only open DevTools in development mode and if explicitly enabled
+  if (isDev && !app.isPackaged) {
+    // win.webContents.openDevTools(); // Commented out to prevent auto-opening
   }
 
   // Prevent navigation to untrusted domains
