@@ -5,6 +5,7 @@
 import { currentUser, contacts, activeContactId, showToast, generateUUID } from './core.js';
 import { ephemeralEncrypt, ephemeralDecrypt, getEOSBlockHash } from './crypto.js';
 import { contactsState, renderChatMessages, fetchUserById } from './shared.js';
+import API_CONFIG from '../config.js';
 
 /**
  * Initialize message input functionality
@@ -569,7 +570,7 @@ async function fetchOfflineEphemeralMessages() {
 
         // Make API request with error handling
         try {
-            const response = await window.apiUtils.apiGet('http://localhost:4000/messages');
+            const response = await window.apiUtils.apiGet(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.MESSAGES}`);
             
             if (!response) {
                 console.error('Failed to fetch offline messages: No data received');

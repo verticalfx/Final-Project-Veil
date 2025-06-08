@@ -28,9 +28,19 @@ const contactRoutes = require('./routes/contacts');
 const messagesRoutes = require('./routes/messages');
 const usersRoutes = require('./routes/users');
 
+let options = null;
+try {
+  options = {
+    key: fs.readFileSync('./key.pem'),
+    cert: fs.readFileSync('./cert.pem')
+  };
+} catch (err) {
+  console.warn('SSL cert/key not found, using HTTP');
+}
+
 // Create Express + HTTP + Socket.IO
 const app = express();
-const server = http.createServer(app);
+const server = options ? http.createServer(options, app) : http.createServer(app);
 const io = socketIO(server, {
   cors: {
     origin: config.cors.origin,

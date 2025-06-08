@@ -90,6 +90,8 @@ import { contactsState } from './modules/contacts.js';
 // Import renderChatMessages from shared.js
 import { renderChatMessages } from './modules/shared.js';
 
+import API_CONFIG from './config.js';
+
 // Make shared functions available globally
 window.renderChatMessages = renderChatMessages;
 
@@ -130,7 +132,7 @@ function connectSocket(caller = 'unknown') {
         updateConnectionStatus('connecting');
 
         // Connect to socket server with auth token
-        window.socket = io('http://localhost:4000', {
+        window.socket = io(API_CONFIG.SOCKET_URL, {
             query: {
                 userId: window.currentUser._id
             },
@@ -280,8 +282,8 @@ function initializeAppState() {
  */
 document.addEventListener('DOMContentLoaded', () => {
     // Add these lines at the beginning of the DOMContentLoaded event handler
-    window.CONTACTS_API_URL = 'http://localhost:4000/contacts';
-    window.USERS_API_URL = 'http://localhost:4000/users';
+    window.CONTACTS_API_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CONTACTS}`;
+    window.USERS_API_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}`;
 
     // Initialize app state
     initializeAppState();
@@ -1054,8 +1056,8 @@ window.initializeMessageInput = initializeMessageInput;
 window.liveContactSearch = liveContactSearch;
 window.clearContactSearch = clearContactSearch;
 window.addContactById = addContactById;
-window.CONTACTS_API_URL = 'http://localhost:4000/contacts';
-window.USERS_API_URL = 'http://localhost:4000/users';
+window.CONTACTS_API_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CONTACTS}`;
+window.USERS_API_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}`;
 
 // Add a debug function to check if the modal is working
 window.debugModal = function() {

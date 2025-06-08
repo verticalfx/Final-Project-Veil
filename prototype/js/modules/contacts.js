@@ -5,13 +5,14 @@
 import { currentUser, showToast } from './core.js';
 import { markMessagesAsRead, showMessageDetails } from './messaging.js';
 import { contactsState, renderChatMessages, fetchUserById } from './shared.js';
+import API_CONFIG from '../config.js';
 
 // Export the contactsState for other modules
 export { contactsState };
 
 // API endpoint constants
-const CONTACTS_API_URL = 'http://localhost:4000/contacts';
-const USERS_API_URL = 'http://localhost:4000/auth/users';
+const CONTACTS_API_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CONTACTS}`;
+const USERS_API_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}`;
 
 // Add a flag to prevent duplicate fetches
 let isFetchingContacts = false;

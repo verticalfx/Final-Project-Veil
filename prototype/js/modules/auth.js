@@ -6,6 +6,7 @@ import { phoneNumber as importedPhoneNumber, usernameVal as importedUsernameVal,
 import { fetchContacts, refreshContactsUI, refreshChatsUI, fetchUserById } from './contacts.js';
 import { fetchOfflineEphemeralMessages, handleIncomingEphemeral } from './messaging.js';
 import { fetchUserById as sharedFetchUserById, renderChatMessages } from './shared.js';
+import API_CONFIG from '../config.js';
 
 const authState = {
     phoneNumber: '',
@@ -92,20 +93,24 @@ async function startPhoneLogin() {
     setLoadingState(continueBtn, true, 'Processing...');
 
     try {
-        const res = await fetch(`${API_BASE_URL}/start`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/start`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phoneNumber: phoneValue })
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                phoneNumber: phoneValue
+            })
         });
         
         // Get the OTP request token from the response headers
-        const requestToken = res.headers.get('x-otp-request-token');
+        const requestToken = response.headers.get('x-otp-request-token');
         if (requestToken) {
             authState.requestToken = requestToken;
             console.log('Received OTP request token:', requestToken);
         }
         
-        const data = await res.json();
+        const data = await response.json();
 
         // Reset phoneNotRegistered flag before checking response
         authState.phoneNotRegistered = false;
@@ -130,7 +135,7 @@ async function startPhoneLogin() {
         }
     } catch (err) {
         document.getElementById('phoneError').textContent = 'Could not contact server.';
-        console.error(err);
+        console.error('Error starting login:', err);
     } finally {
         setLoadingState(continueBtn, false);
     }
@@ -283,21 +288,21 @@ async function verifyOtp() {
 
     try {
         console.log('Using request token for verification:', authState.requestToken);
-        const res = await fetch(`${API_BASE_URL}/verify`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/verify`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'x-otp-request-token': authState.requestToken
             },
-            body: JSON.stringify({ 
-                otp: otpVal,
-                phoneNumber: authState.phoneNumber
+            body: JSON.stringify({
+                phoneNumber: authState.phoneNumber,
+                otp: otpVal
             })
         });
         
-        if (!res.ok) {
-            console.error('OTP verification failed with status:', res.status);
-            const errorData = await res.json();
+        if (!response.ok) {
+            console.error('OTP verification failed with status:', response.status);
+            const errorData = await response.json();
             console.error('Error response:', errorData);
             otpErr.textContent = errorData.error || 'Verification failed. Please try again.';
             loadingContainer.classList.add('hidden');
@@ -306,13 +311,13 @@ async function verifyOtp() {
         }
         
         // Check for a new token in the response headers
-        const newRequestToken = res.headers.get('x-otp-request-token');
+        const newRequestToken = response.headers.get('x-otp-request-token');
         if (newRequestToken) {
             authState.requestToken = newRequestToken;
             console.log('Updated request token from headers:', authState.requestToken);
         }
         
-        const data = await res.json();
+        const data = await response.json();
 
         loadingContainer.classList.add('hidden');
         setLoadingState(verifyBtn, false);

@@ -2,6 +2,8 @@
  * core.js - Core functionality and global state
  */
 
+import API_CONFIG from '../config.js';
+
 // Global states
 let phoneNumber = '';
 let usernameVal = '';
@@ -292,7 +294,7 @@ function initSocket() {
     console.log('Initializing socket connection with auth token...');
     
     // Connect to socket server with auth token
-    socket = io('http://localhost:4000', {
+    socket = io(API_CONFIG.SOCKET_URL, {
         auth: {
             token: token
         },
