@@ -2,7 +2,7 @@
  * auth.js - Authentication and onboarding functionality
  */
 
-import { phoneNumber as importedPhoneNumber, usernameVal as importedUsernameVal, bioVal as importedBioVal, pfpVal, currentUser, phoneNotRegistered as importedPhoneNotRegistered, showToast } from './core.js';
+import { currentUser, contacts, activeContactId, showToast, generateUUID } from './core.js';
 import { fetchContacts, refreshContactsUI, refreshChatsUI, fetchUserById } from './contacts.js';
 import { fetchOfflineEphemeralMessages, handleIncomingEphemeral } from './messaging.js';
 import { fetchUserById as sharedFetchUserById, renderChatMessages } from './shared.js';
@@ -18,9 +18,6 @@ const authState = {
 
 // Expose authState to window for access from other modules
 window.authState = authState;
-
-// Base URL for API endpoints (update as needed)
-const API_BASE_URL = 'http://localhost:4000/auth';
 
 /**
  * Set loading state for a button.
@@ -149,18 +146,27 @@ function continueFromName() {
     nameErr.textContent = '';
 
     const usernameInput = document.getElementById('regUsername');
-    authState.username = usernameInput.value.trim();
+    const username = usernameInput.value.trim();
+    
+    console.log('Username input value:', username);
+    console.log('phoneNotRegistered:', authState.phoneNotRegistered);
 
-    if (!authState.username && authState.phoneNotRegistered) {
+    if (!username && authState.phoneNotRegistered) {
         nameErr.textContent = 'Username is required.';
         return;
     }
+    
+    // Save username to authState
+    authState.username = username;
+    console.log('Saved username to authState:', authState.username);
+    
     if (authState.phoneNotRegistered) {
         showStep('stepBio');
+        hideStep('stepName');
     } else {
         showStep('stepOTP');
+        hideStep('stepName');
     }
-    hideStep('stepName');
 }
 
 /**
@@ -175,7 +181,12 @@ function submitUsername() {
  */
 function continueFromBio() {
     const bioInput = document.getElementById('regBio');
-    authState.bio = bioInput.value.trim();
+    const bio = bioInput.value.trim();
+    
+    // Save bio to authState
+    authState.bio = bio;
+    console.log('Saved bio to authState:', authState.bio);
+    
     hideStep('stepBio');
     showStep('stepOTP');
     registerUser();
@@ -204,24 +215,32 @@ async function registerUser() {
     const nameErr = document.getElementById('nameError');
     nameErr.textContent = '';
 
+    console.log('Registering user with:', {
+        phoneNumber: authState.phoneNumber,
+        username: authState.username,
+        bio: authState.bio
+    });
+
     try {
-        const res = await fetch(`${API_BASE_URL}/register`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 phoneNumber: authState.phoneNumber,
                 username: authState.username,
                 bio: authState.bio,
-                pfp: pfpVal
+                pfp: '' // Profile picture can be added later
             })
         });
-        const data = await res.json();
+        const data = await response.json();
+        
         if (data.error) {
             nameErr.textContent = data.error;
+            console.error('Registration error:', data.error);
         } else {
             console.log('Registration success, proceed OTP...');
             // After registration, request OTP for demo purposes
-            const otpRes = await fetch(`${API_BASE_URL}/start`, {
+            const otpRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phoneNumber: authState.phoneNumber })
@@ -247,7 +266,7 @@ async function registerUser() {
             }, 100);
         }
     } catch (err) {
-        console.error(err);
+        console.error('Registration request failed:', err);
         nameErr.textContent = 'Registration request failed.';
     }
 }
