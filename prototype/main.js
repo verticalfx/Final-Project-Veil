@@ -9,11 +9,11 @@ const isDev = process.env.NODE_ENV === 'development';
 const cspHeader = {
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdn.socket.io",
+    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdn.socket.io https://cdnjs.cloudflare.com",
     "img-src 'self' data: https://rsms.me https://upload.wikimedia.org https://flagcdn.com",
     "style-src 'self' 'unsafe-inline' https://rsms.me https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://cdnjs.cloudflare.com",
     "font-src 'self' https://rsms.me https://cdnjs.cloudflare.com https://use.fontawesome.com data:",
-    "connect-src 'self' http://localhost:4000 https://eos.greymass.com wss://localhost:4000 ws://localhost:4000",
+    "connect-src 'self' http://localhost:4000 http://138.197.106.91:4000 https://eos.greymass.com wss://localhost:4000 ws://localhost:4000 ws://138.197.106.91:4000 wss://138.197.106.91:4000",
     "frame-src 'none'",
     "object-src 'none'"
   ].join('; ')
