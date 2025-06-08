@@ -11,7 +11,7 @@ export { contactsState };
 
 // API endpoint constants
 const CONTACTS_API_URL = 'http://localhost:4000/contacts';
-const USERS_API_URL = 'http://localhost:4000/users';
+const USERS_API_URL = 'http://localhost:4000/auth/users';
 
 // Add a flag to prevent duplicate fetches
 let isFetchingContacts = false;
@@ -138,85 +138,40 @@ function _refreshContactsUI() {
         return bTime - aTime;
     });
 
-    // Create separate arrays for regular contacts and unknown contacts
+    // Create separate arrays for regular contacts and new contacts
     const regularContacts = sortedContacts.filter(contact => !contact.isNotInContacts);
-    const unknownContacts = sortedContacts.filter(contact => contact.isNotInContacts);
+    const newContacts = sortedContacts.filter(contact => contact.isNotInContacts);
     
-    // Display regular contacts as usual
-    if (regularContacts.length === 0 && unknownContacts.length === 0) {
+    // Display contacts
+    if (regularContacts.length === 0 && newContacts.length === 0) {
         contactsList.innerHTML = '<div class="p-4 text-center text-gray-400">No contacts yet</div>';
         recentChatsList.innerHTML = '<div class="p-4 text-center text-gray-400">No chats yet</div>';
     } else {
-        // Create and append contact items
+        // Create and append regular contact items
         regularContacts.forEach(contact => {
-            const contactItem = document.createElement('div');
-            contactItem.className = `contact-item ${contact._id === contactsState.activeContactId ? 'active' : ''}`;
-            contactItem.setAttribute('data-id', contact._id);
-            contactItem.addEventListener('click', () => {
-                // Only set active contact when explicitly clicked
-                window.selectContact(contact._id);
-            });
-
-            // Get initials for profile picture fallback
-            const initials = contact.name ? contact.name.split(' ').map(n => n[0]).join('').toUpperCase() : '';
-            contactItem.innerHTML = `
-              <div class="profile-pic">
-                ${contact.pfp ? `<img src="${contact.pfp}" alt="${contact.name}" class="w-full h-full object-cover rounded-full">` : initials}
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex justify-between items-center">
-                  <h3 class="font-medium truncate">${contact.name}</h3>
-                  ${contact.unreadCount ? `<span class="bg-purple-primary text-white text-xs rounded-full px-2 py-1 ml-2">${contact.unreadCount}</span>` : ''}
-                </div>
-              </div>
-              <button class="three-dots-menu" onclick="event.stopPropagation(); openContactProfileModal('${contact._id}')">
-                <i class="fas fa-ellipsis-v"></i>
-              </button>
-            `;
+            const contactItem = createContactItem(contact, contact._id === contactsState.activeContactId);
             contactsList.appendChild(contactItem);
 
             // Append to recent chats if there are messages
             if (contact.messages && contact.messages.length > 0) {
-                const chatItem = document.createElement('div');
-                chatItem.className = `contact-item ${contact._id === contactsState.activeContactId ? 'active' : ''}`;
-                chatItem.setAttribute('data-id', contact._id);
-                chatItem.addEventListener('click', () => {
-                    // Only set active contact when explicitly clicked
-                    window.selectContact(contact._id);
-                });
-                chatItem.innerHTML = `
-                  <div class="profile-pic">
-                    ${contact.pfp ? `<img src="${contact.pfp}" alt="${contact.name}" class="w-full h-full object-cover rounded-full">` : initials}
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center">
-                      <h3 class="font-medium truncate">${contact.name}</h3>
-                      ${contact.unreadCount ? `<span class="bg-purple-primary text-white text-xs rounded-full px-2 py-1 ml-2">${contact.unreadCount}</span>` : ''}
-                    </div>
-                    <p class="text-gray-400 text-sm truncate">${contact.lastMessage || 'No messages yet'}</p>
-                  </div>
-                  <button class="three-dots-menu" onclick="event.stopPropagation(); openContactProfileModal('${contact._id}')">
-                    <i class="fas fa-ellipsis-v"></i>
-                  </button>
-                `;
+                const chatItem = createContactItem(contact, contact._id === contactsState.activeContactId);
                 recentChatsList.appendChild(chatItem);
             }
         });
         
-        // Display unknown contacts chats as normal items (skip fancy card)
-        unknownContacts.forEach(contact => {
-            if (contact.messages && contact.messages.length > 0) {
-                const chatItem = document.createElement('div');
-                chatItem.className = `contact-item ${contact._id === contactsState.activeContactId ? 'active' : ''}`;
-                chatItem.setAttribute('data-id', contact._id);
-                chatItem.addEventListener('click', () => window.selectContact(contact._id));
+        // Display new contacts with distinct styling
+        if (newContacts.length > 0) {
+            // Add a separator for new contacts
+            const separator = document.createElement('div');
+            separator.className = 'px-4 py-2 text-sm text-yellow-500 bg-dark-tertiary border-l-4 border-yellow-500';
+            separator.innerHTML = '<i class="fas fa-user-shield mr-2"></i>New Contacts';
+            recentChatsList.appendChild(separator);
 
-                const initials = (contact.name || '').split(' ').map(n=>n[0]).join('').toUpperCase();
-                chatItem.innerHTML = `<div class="profile-pic">${contact.pfp?`<img src="${contact.pfp}" class="w-full h-full object-cover rounded-full">`:initials}</div>
-                <div class="flex-1 min-w-0"><div class="flex justify-between items-center"><h3 class="font-medium truncate">${contact.name}</h3><span class="bg-purple-primary text-white text-xs rounded-full px-2 py-1 ml-2">${contact.unreadCount||''}</span></div><p class="text-gray-400 text-sm truncate">${contact.lastMessage||'New message'}</p></div>`;
+            newContacts.forEach(contact => {
+                const chatItem = createContactItem(contact, contact._id === contactsState.activeContactId);
                 recentChatsList.appendChild(chatItem);
-            }
-        });
+            });
+        }
     }
 
     // Make sure contactsState is in sync with AppState
@@ -307,94 +262,46 @@ function refreshChatsUI(caller = 'unknown') {
         if (backButton) backButton.classList.remove('hidden');
 
         // Update contact info
-        const chatTitle = document.getElementById('chatTitle');
-        const chatSubtitle = document.getElementById('chatSubtitle');
-        const chatContactPic = document.getElementById('chatContactPic');
-
-        if (chatTitle) {
-            // For unknown contacts, show "Unknown" with their anonId
-            if (activeContact.isNotInContacts) {
-                const displayId = activeContact.anonId || (activeContact.phoneNumber ? activeContact.phoneNumber.slice(-8) : 'Unknown');
-                chatTitle.innerHTML = `
-                    <div class="flex items-center">
-                        <span>Unknown (${displayId})</span>
-                        <span class="ml-2 text-yellow-500" title="Unverified sender">
-                            <i class="fas fa-shield-alt"></i>
-                        </span>
-                    </div>
-                `;
-            } else {
-                chatTitle.textContent = activeContact.name || 'Unknown Contact';
-            }
-        }
-        
-        if (chatSubtitle) {
-            if (activeContact.isNotInContacts) {
-                chatSubtitle.innerHTML = `
-                    <span class="text-yellow-500 flex items-center">
-                        <i class="fas fa-exclamation-triangle mr-1.5 text-xs"></i>
-                        <span>Unverified sender</span>
-                    </span>
-                `;
-            } else {
-                chatSubtitle.textContent = activeContact.online ? 'Online' :
-                    activeContact.lastSeen ? `Last seen ${formatLastSeen(activeContact.lastSeen)}` :
-                        'Offline';
-            }
-        }
-        
-        if (chatContactPic) {
-            if (activeContact.isNotInContacts) {
-                // For unknown contacts, use a special profile pic with warning colors
-                const displayId = activeContact.anonId || (activeContact.phoneNumber ? activeContact.phoneNumber.slice(-8) : 'Unknown');
-                const initials = displayId.slice(0, 2).toUpperCase();
-                chatContactPic.innerHTML = activeContact.pfp ?
-                    `<img src="${activeContact.pfp}" alt="Unknown" class="w-full h-full rounded-full">` :
-                    `<div class="w-full h-full rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 text-gray-900 flex items-center justify-center font-bold">${initials}</div>`;
-            } else {
-                chatContactPic.innerHTML = activeContact.pfp ?
-                    `<img src="${activeContact.pfp}" alt="${activeContact.name}" class="w-full h-full rounded-full">` :
-                    '<i class="fas fa-user"></i>';
-            }
-        }
+        updateChatHeader(chatHeader, activeContact);
     }
 
     // Show chat container and input
     if (chatContainer) chatContainer.classList.remove('hidden');
     if (chatAreaBox) chatAreaBox.classList.remove('hidden');
 
-    // Add security alert banner for unknown contacts
+    // Add security notice for new contacts
     const existingAlert = document.getElementById('securityAlertBanner');
     if (existingAlert) {
         existingAlert.remove();
     }
 
     if (activeContact.isNotInContacts) {
-        // Create security alert banner
+        // Create security notice banner
         const alertBanner = document.createElement('div');
         alertBanner.id = 'securityAlertBanner';
-        alertBanner.className = 'security-alert-banner';
-        
-        // Get the anonId or a fallback
-        const displayId = activeContact.anonId || (activeContact.phoneNumber ? activeContact.phoneNumber.slice(-8) : 'Unknown');
+        alertBanner.className = 'bg-dark-tertiary border-l-4 border-yellow-500 p-4 mb-4';
         
         alertBanner.innerHTML = `
-            <div class="security-alert-content">
-                <div class="security-alert-icon">
-                    <i class="fas fa-shield-alt"></i>
+            <div class="flex items-start">
+                <div class="flex-shrink-0 mt-0.5">
+                    <i class="fas fa-shield-alt text-yellow-500"></i>
                 </div>
-                <div class="security-alert-text">
-                    This is an <strong>unverified sender</strong> with ID ${displayId}. 
-                    Exercise caution with any links or requests.
+                <div class="ml-3 flex-1">
+                    <h3 class="text-sm font-medium text-yellow-500">New Contact Notice</h3>
+                    <div class="mt-1 text-sm text-gray-300">
+                        <p>This is your first conversation with ${activeContact.name}. Messages are end-to-end encrypted.</p>
+                    </div>
+                    <div class="mt-3 flex space-x-2">
+                        <button onclick="addContactById('${activeContact._id}')" 
+                                class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 px-3 py-1 rounded-md text-sm font-medium transition-colors">
+                            Add to Contacts
+                        </button>
+                        <button onclick="blockContact('${activeContact._id}')"
+                                class="bg-dark-secondary hover:bg-dark-primary text-gray-300 px-3 py-1 rounded-md text-sm font-medium transition-colors">
+                            Block
+                        </button>
+                    </div>
                 </div>
-            </div>
-            <div class="security-alert-actions">
-                <button class="security-alert-btn security-alert-btn-primary" onclick="addContactById('${activeContact._id}')">
-                    <i class="fas fa-user-plus mr-1"></i> Add Contact
-                </button>
-                <button class="security-alert-btn security-alert-btn-secondary" onclick="blockContact('${activeContact._id}')">
-                    <i class="fas fa-ban mr-1"></i> Block
-                </button>
             </div>
         `;
         
@@ -462,9 +369,11 @@ function formatLastSeen(timeStr) {
     const diffMinutes = Math.floor((now - lastSeen) / 1000 / 60);
 
     if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 2) return 'a minute ago';
     if (diffMinutes < 60) return `${diffMinutes}m ago`;
 
     const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 1) return 'recently';
     if (diffHours < 24) return `${diffHours}h ago`;
 
     const diffDays = Math.floor(diffHours / 24);
@@ -903,18 +812,24 @@ function searchContacts(query) {
  */
 async function addContactById(userId) {
     try {
-        const errorElement = document.getElementById('contactAddError');
-        errorElement.classList.remove('hidden');
-        errorElement.textContent = '';
-
         console.log('Adding contact with ID:', userId);
         
         // Show loading state on the add button
         const addButton = document.querySelector(`.add-user-btn[data-user-id="${userId}"]`);
         if (addButton) {
-            const originalText = addButton.innerHTML;
             addButton.disabled = true;
             addButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        // Check if contact already exists in AppState
+        const existingContact = window.AppState.contacts.find(c => c._id === userId);
+        if (existingContact && !existingContact.isNotInContacts) {
+            showToast('Contact already added', 'info');
+            if (addButton) {
+                addButton.disabled = false;
+                addButton.innerHTML = 'Add';
+            }
+            return false;
         }
 
         // Make API call to add contact
@@ -930,57 +845,78 @@ async function addContactById(userId) {
             })
         });
 
+        const data = await response.json();
+        console.log('Contact addition response:', data);
+
         if (!response.ok) {
+            showToast(data.error || 'Failed to add contact', 'error');
             if (addButton) {
                 addButton.disabled = false;
                 addButton.innerHTML = 'Add';
             }
-            const errorData = await response.json();
-            errorElement.textContent = errorData.error || `Failed to add contact (${response.status})`;
             return false;
         }
 
-        const data = await response.json();
-
-        // Fetch the user details
-        const userResponse = await fetch(`${USERS_API_URL}/${userId}`, {
-            headers: {
-                'Authorization': `Bearer ${window.apiUtils.getAuthToken()}`
-            }
-        });
-        
-        if (!userResponse.ok) {
-            errorElement.textContent = 'Failed to get user details';
+        // Use the contact data from the response instead of making another API call
+        const contact = data.contact;
+        if (!contact) {
+            showToast('Invalid contact data received', 'error');
             return false;
         }
 
-        const user = await userResponse.json();
-
-        // Add to contacts state
+        // Create new contact object using the response data
         const newContact = {
-            _id: user._id,
-            name: user.username || user.anonId || user.phoneNumber,
-            anonId: user.anonId,
-            phoneNumber: user.phoneNumber,
-            bio: user.bio || '',
-            pfp: user.pfp || '',
-            messages: [],
-            lastMessage: '',
-            unreadCount: 0
+            _id: contact._id,
+            name: contact.username || contact.anonId || contact.phoneNumber,
+            anonId: contact.anonId,
+            phoneNumber: contact.phoneNumber,
+            bio: contact.bio || '',
+            pfp: contact.pfp || contact.profilePicture || '',
+            messages: existingContact ? existingContact.messages : [],
+            lastMessage: existingContact ? existingContact.lastMessage : '',
+            unreadCount: existingContact ? existingContact.unreadCount : 0,
+            isNotInContacts: false
         };
 
-        window.AppState.addContact(newContact);
+        console.log('Creating new contact object:', newContact);
+
+        // Remove any existing instance of this contact
+        window.AppState.contacts = window.AppState.contacts.filter(c => c._id !== userId);
+        contactsState.contacts = contactsState.contacts.filter(c => c._id !== userId);
+        
+        // Add the new contact
+        window.AppState.contacts.push(newContact);
+        contactsState.contacts.push(newContact);
+
+        // Save to storage
+        window.AppState.saveToLocalStorage();
+        sessionStorage.setItem('contacts', JSON.stringify(window.AppState.contacts));
+
+        // Remove security banner if it exists
+        const securityBanner = document.getElementById('securityAlertBanner');
+        if (securityBanner) {
+            securityBanner.remove();
+        }
+
+        console.log('Current contacts state:', {
+            appStateContacts: window.AppState.contacts,
+            contactsStateContacts: contactsState.contacts
+        });
+
+        // Force UI refresh
         refreshContactsUI();
-        closeAddContactModal();
+        refreshChatsUI('contacts.js:addContactById');
+
+        // Show success message
         showToast(`Added ${newContact.name} to contacts`, 'success');
+
+        // Select the contact
         selectContact(newContact._id);
 
         return true;
     } catch (error) {
         console.error('Error adding contact:', error);
-        const errorElement = document.getElementById('contactAddError');
-        errorElement.classList.remove('hidden');
-        errorElement.textContent = 'An error occurred while adding the contact';
+        showToast('Failed to add contact', 'error');
         
         // Restore the button on error
         const addButton = document.querySelector(`.add-user-btn[data-user-id="${userId}"]`);
@@ -1383,4 +1319,132 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+/**
+ * Get contact status display
+ */
+function getContactStatus(contact) {
+    if (contact.online) {
+        return '<span class="text-green-500 flex items-center"><i class="fas fa-circle text-xs mr-1.5"></i>Online</span>';
+    }
+    
+    if (contact.away) {
+        return '<span class="text-yellow-500 flex items-center"><i class="fas fa-moon text-xs mr-1.5"></i>Away</span>';
+    }
+    
+    // If we have a lastSeen timestamp and it's recent (within last hour)
+    if (contact.lastSeen) {
+        const lastSeenDate = new Date(contact.lastSeen);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - lastSeenDate) / 1000 / 60);
+        
+        if (diffMinutes < 60) {
+            return `<span class="text-gray-400 flex items-center"><i class="fas fa-clock text-xs mr-1.5"></i>Last seen ${formatLastSeen(contact.lastSeen)}</span>`;
+        }
+    }
+    
+    return '<span class="text-gray-400 flex items-center"><i class="fas fa-circle text-xs mr-1.5"></i>Offline</span>';
+}
+
+/**
+ * Get contact status indicator
+ */
+function getStatusIndicator(contact) {
+    if (contact.online) {
+        return '<span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-dark-secondary rounded-full"></span>';
+    }
+    if (contact.away) {
+        return '<span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-yellow-500 border-2 border-dark-secondary rounded-full"></span>';
+    }
+    
+    // Show gray indicator for offline/last seen
+    return '<span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-gray-500 border-2 border-dark-secondary rounded-full"></span>';
+}
+
+// Update the contact item HTML generation in _refreshContactsUI
+function createContactItem(contact, isActive) {
+    const contactItem = document.createElement('div');
+    contactItem.className = `contact-item ${isActive ? 'active' : ''}`;
+    contactItem.setAttribute('data-id', contact._id);
+    contactItem.addEventListener('click', () => window.selectContact(contact._id));
+
+    const initials = contact.name ? contact.name.split(' ').map(n => n[0]).join('').toUpperCase() : '';
+    
+    contactItem.innerHTML = `
+        <div class="profile-pic relative">
+            ${contact.pfp ? 
+                `<img src="${contact.pfp}" alt="${contact.name}" class="w-full h-full object-cover rounded-full">` : 
+                `<div class="w-full h-full flex items-center justify-center bg-purple-primary rounded-full">${initials}</div>`
+            }
+            ${getStatusIndicator(contact)}
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-center">
+                <h3 class="font-medium truncate">${contact.name}</h3>
+                ${contact.unreadCount ? 
+                    `<span class="bg-purple-primary text-white text-xs rounded-full px-2 py-1 ml-2">${contact.unreadCount}</span>` : 
+                    ''
+                }
+            </div>
+            <p class="text-sm text-gray-400">${getContactStatus(contact)}</p>
+        </div>
+        <button class="three-dots-menu" onclick="event.stopPropagation(); openContactProfileModal('${contact._id}')">
+            <i class="fas fa-ellipsis-v"></i>
+        </button>
+    `;
+
+    return contactItem;
+}
+
+// Update the chat header status display in refreshChatsUI
+function updateChatHeader(chatHeader, activeContact) {
+    if (!chatHeader) return;
+
+    const chatTitle = document.getElementById('chatTitle');
+    const chatSubtitle = document.getElementById('chatSubtitle');
+    const chatContactPic = document.getElementById('chatContactPic');
+
+    if (chatTitle) {
+        if (activeContact.isNotInContacts) {
+            chatTitle.innerHTML = `
+                <div class="flex items-center">
+                    <span>${activeContact.name}</span>
+                    <span class="ml-2 text-yellow-500 text-sm" title="New contact">
+                        <i class="fas fa-user-shield"></i>
+                    </span>
+                </div>
+            `;
+        } else {
+            chatTitle.textContent = activeContact.name;
+        }
+    }
+
+    if (chatSubtitle) {
+        if (activeContact.isNotInContacts) {
+            chatSubtitle.innerHTML = `
+                <span class="text-yellow-500 flex items-center text-sm">
+                    <i class="fas fa-exclamation-triangle mr-1.5 text-xs"></i>
+                    <span>New contact · Not in your contacts list</span>
+                </span>
+            `;
+        } else {
+            // Use the same status display as in the contacts list
+            chatSubtitle.innerHTML = getContactStatus(activeContact);
+        }
+    }
+
+    if (chatContactPic) {
+        const initials = activeContact.name.slice(0, 2).toUpperCase();
+        const picHtml = activeContact.pfp ?
+            `<img src="${activeContact.pfp}" alt="${activeContact.name}" class="w-full h-full rounded-full">` :
+            `<div class="w-full h-full rounded-full bg-purple-primary flex items-center justify-center font-bold">${initials}</div>`;
+
+        chatContactPic.innerHTML = `
+            <div class="relative">
+                ${picHtml}
+                ${getStatusIndicator(activeContact)}
+            </div>
+        `;
+    }
+}
 

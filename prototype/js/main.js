@@ -171,6 +171,7 @@ function connectSocket(caller = 'unknown') {
             const contact = contacts.find(c => c._id === data.userId);
             if (contact) {
                 contact.online = data.status === 'online';
+                contact.away = data.status === 'away';
                 contact.lastSeen = data.lastSeen;
                 refreshContactsUI();
                 refreshChatsUI('main.js:152 (user_status event)');
@@ -181,14 +182,14 @@ function connectSocket(caller = 'unknown') {
         window.addEventListener('focus', () => {
             window.isWindowFocused = true;
             if (window.socket && window.socket.connected) {
-                window.socket.emit('user_status', { status: 'online' });
+                window.emitUserStatus('online');
             }
         });
 
         window.addEventListener('blur', () => {
             window.isWindowFocused = false;
             if (window.socket && window.socket.connected) {
-                window.socket.emit('user_status', { status: 'away' });
+                window.emitUserStatus('away');
             }
         });
 

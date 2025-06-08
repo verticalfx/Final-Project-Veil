@@ -647,3 +647,10 @@
 {"type":"queued","messageId":"88607980-d11e-4058-a18a-1135cd4518e7","ts":"2025-06-08T21:15:26.470Z"}
 {"type":"queued","messageId":"99e7e76f-4ccf-42a1-b284-9e2ded6d2e93","ts":"2025-06-08T21:15:26.588Z"}
 {"type":"queued","messageId":"318004bf-c582-4ac1-afb9-8c9463edaf6f","ts":"2025-06-08T21:18:18.617Z"}
+{"type":"relay","rttMs":4,"messageId":"9c9613a2-8a97-4705-b8c3-23c3446fd01b","ts":"2025-06-08T21:22:48.437Z"}
+{"type":"relay","rttMs":4,"messageId":"62a38bd8-d2b2-488e-9494-a0194bb4d7b9","ts":"2025-06-08T21:23:01.174Z"}
+{"type":"relay","rttMs":5,"messageId":"8182dc21-e2f3-48d9-9f4a-8c1230e8d232","ts":"2025-06-08T21:23:02.799Z"}
+{"type":"relay","rttMs":5,"messageId":"9cbb8df9-7853-4f86-9712-5696a3741f24","ts":"2025-06-08T21:26:09.171Z"}
+{"type":"relay","rttMs":5,"messageId":"d34e5c1b-6c45-4b3f-a1b9-a04c0e2412c6","ts":"2025-06-08T21:45:56.823Z"}
+{"type":"relay","rttMs":4,"messageId":"09bffba7-e28c-4c6c-920b-2483c6a70678","ts":"2025-06-08T21:50:28.216Z"}
+{"type":"relay","rttMs":7,"messageId":"373051b6-8ae9-4cb1-8cfb-91b55daa7893","ts":"2025-06-08T21:54:08.360Z"}

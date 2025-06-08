@@ -85,6 +85,16 @@ async function startPhoneLogin() {
         return;
     }
 
+    // Extract the digits after the country code
+    const countryCode = phoneValue.startsWith('+') ? phoneValue.match(/^\+(\d+)/)[1] : '';
+    const nationalNumber = phoneValue.substring(countryCode.length + 1).replace(/\D/g, '');
+
+    // Validate minimum length (10 digits after country code)
+    if (nationalNumber.length < 10) {
+        document.getElementById('phoneError').textContent = 'Phone number must be at least 10 digits (excluding country code).';
+        return;
+    }
+
     console.log('Normalized phone number:', phoneValue);
 
     // Show loading state
