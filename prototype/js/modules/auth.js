@@ -413,7 +413,7 @@ async function verifyOtp() {
         // Check if this is a new registration
         if (authState.phoneNotRegistered) {
             // Show welcome modal with celebration effect
-            showWelcomeModal(data.user);
+            //showWelcomeModal(data.user);
         }
 
         // Initialize app functions after a short delay to ensure user data is set
@@ -489,78 +489,122 @@ function updateUserDisplay(user) {
 }
 
 /**
- * Show the welcome modal with celebration effect
- * @param {Object} user - The user object
+ * Show a step in the onboarding process with animation.
+ */
+function showStep(id) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.classList.remove('hidden');
+        element.classList.add('step-transition');
+        
+        // Update progress indicator
+        updateProgressIndicator(id);
+        
+        // Focus first input in the step
+        const firstInput = element.querySelector('input');
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 300);
+        }
+    }
+}
+
+/**
+ * Hide a step in the onboarding process with animation.
+ */
+function hideStep(id) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.classList.add('fade-out');
+        setTimeout(() => {
+            element.classList.add('hidden');
+            element.classList.remove('fade-out');
+        }, 200);
+    }
+}
+
+/**
+ * Update progress indicator based on current step
+ */
+function updateProgressIndicator(currentStepId) {
+    const steps = ['stepPhone', 'stepOTP', 'stepName', 'stepBio'];
+    const currentIndex = steps.indexOf(currentStepId);
+    
+    steps.forEach((step, index) => {
+        const indicator = document.querySelector(`[data-step="${step}"]`);
+        if (!indicator) return;
+        
+        if (index < currentIndex) {
+            indicator.classList.add('completed');
+            indicator.classList.remove('active');
+        } else if (index === currentIndex) {
+            indicator.classList.add('active');
+            indicator.classList.remove('completed');
+        } else {
+            indicator.classList.remove('active', 'completed');
+        }
+        
+        // Update progress lines
+        if (index < steps.length - 1) {
+            const line = document.querySelector(`[data-line="${step}"]`);
+            if (line) {
+                if (index < currentIndex) {
+                    line.classList.add('active');
+                } else {
+                    line.classList.remove('active');
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Show welcome modal with celebration effect
  */
 function showWelcomeModal(user) {
-    const modal = document.getElementById('welcomeModal');
-    const anonIdElement = document.getElementById('welcomeAnonId');
-    
-    if (!modal || !user) return;
-    
-    // Set the anonId
-    if (anonIdElement) {
-        anonIdElement.textContent = user.anonId || '';
-    }
-    
-    // Show the modal
-    modal.classList.remove('hidden');
-    
-    // Create confetti effect
-    createConfetti();
-    
-    // Setup copy button
-    const copyBtn = document.getElementById('copyAnonIdBtn');
-    if (copyBtn) {
-        copyBtn.onclick = () => {
-            if (user.anonId) {
-                navigator.clipboard.writeText(user.anonId)
-                    .then(() => {
-                        showToast('AnonID copied to clipboard!', 'success');
-                    })
-                    .catch(err => {
-                        console.error('Could not copy text: ', err);
-                    });
-            }
-        };
-    }
-}
-
-/**
- * Close the welcome modal
- */
-function closeWelcomeModal() {
-    const modal = document.getElementById('welcomeModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-}
-
-/**
- * Create confetti animation effect
- */
-function createConfetti() {
-    const container = document.querySelector('.confetti-container');
-    if (!container) return;
-    
-    // Clear any existing confetti
-    container.innerHTML = '';
-    
-    // Create confetti pieces
-    const colors = ['#8a2be2', '#9370db', '#b19cd9', '#9932cc', '#4caf50', '#2196f3', '#ff9800'];
-    
-    for (let i = 0; i < 50; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.style.left = `${Math.random() * 100}%`;
-        confetti.style.width = `${Math.random() * 10 + 5}px`;
-        confetti.style.height = `${Math.random() * 10 + 5}px`;
-        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
-        confetti.style.animationDelay = `${Math.random() * 0.5}s`;
-        
-        container.appendChild(confetti);
-    }
+    Swal.fire({
+        title: 'Welcome to Veil! 🎉',
+        html: `
+            <div class="welcome-modal">
+                <div class="welcome-avatar">
+                    ${user.username.charAt(0).toUpperCase()}
+                </div>
+                <p class="welcome-message">
+                    Hey ${user.username}! Your secure messaging journey begins now.
+                </p>
+                <div class="welcome-features">
+                    <div class="feature-item">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>End-to-end encryption</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-clock"></i>
+                        <span>Ephemeral messaging</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-user-secret"></i>
+                        <span>Complete privacy</span>
+                    </div>
+                </div>
+            </div>
+        `,
+        background: '#1a1a1a',
+        showConfirmButton: true,
+        confirmButtonText: "Let's Start!",
+        confirmButtonColor: '#6C4EF6',
+        allowOutsideClick: false,
+        customClass: {
+            popup: 'welcome-modal-popup',
+            title: 'welcome-modal-title',
+            confirmButton: 'welcome-modal-button'
+        },
+        didOpen: () => {
+            // Add floating animation to features
+            const features = document.querySelectorAll('.feature-item');
+            features.forEach((feature, index) => {
+                feature.style.animation = `float 3s ease-in-out ${index * 0.2}s infinite`;
+            });
+        }
+    });
 }
 
 /**
@@ -583,22 +627,6 @@ function showUserSettings() {
     
     // TODO: Implement settings modal
     showToast('Settings feature coming soon!', 'info');
-}
-
-/**
- * Show a step in the onboarding process.
- */
-function showStep(id) {
-    const element = document.getElementById(id);
-    if (element) element.classList.remove('hidden');
-}
-
-/**
- * Hide a step in the onboarding process.
- */
-function hideStep(id) {
-    const element = document.getElementById(id);
-    if (element) element.classList.add('hidden');
 }
 
 /**
@@ -819,7 +847,6 @@ export {
     skipBio,
     updateUserDisplay,
     showWelcomeModal,
-    closeWelcomeModal,
     showUserProfile,
     showUserSettings
 };

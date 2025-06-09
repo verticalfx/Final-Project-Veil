@@ -2,9 +2,11 @@
  * config.js - Global configuration
  */
 
+const TEST_MODE = true;
+
 const API_CONFIG = {
-    BASE_URL: 'http://138.197.106.91:4000',
-    SOCKET_URL: 'http://138.197.106.91:4000',
+    BASE_URL: TEST_MODE ? 'http://localhost:4000' : 'http://138.197.106.91:4000',
+    SOCKET_URL: TEST_MODE ? 'http://localhost:4000' : 'http://138.197.106.91:4000',
     ENDPOINTS: {
         AUTH: '/auth',
         CONTACTS: '/contacts',
@@ -12,6 +14,7 @@ const API_CONFIG = {
         USERS: '/users'
     }
 };
+
 
 // Freeze the config to prevent modifications
 Object.freeze(API_CONFIG);

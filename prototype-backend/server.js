@@ -67,7 +67,7 @@ const apiLimiter = rateLimit({
 app.use('/auth', apiLimiter);
 
 // Connect to MongoDB
-mongoose.connect(config.db.uri, config.db.options)
+mongoose.connect(config.mongodb.uri, config.mongodb.options)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB error:', err));
 

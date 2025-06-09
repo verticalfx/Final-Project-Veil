@@ -53,13 +53,29 @@ function generateTelegramStyleAnonId() {
 }
 
 /**
+ * Validate phone number format
+ * @param {string} phoneNumber 
+ * @returns {boolean}
+ */
+function isValidPhoneNumber(phoneNumber) {
+  // Basic E.164 format validation
+  return /^\+[1-9]\d{1,14}$/.test(phoneNumber);
+}
+
+/**
  * STEP 1: User enters phone number
- *   - If phone is registered, respond "OK, send OTP"
- *   - If phone not found, respond "register needed"
  */
 router.post('/start', async (req, res) => {
   const { phoneNumber } = req.body;
-  const previousToken = req.headers['x-otp-request-token']; // For resend requests
+  const previousToken = req.headers['x-otp-request-token'];
+  
+  if (!phoneNumber) {
+    return res.status(400).json({ error: 'Phone number is required' });
+  }
+
+  if (!isValidPhoneNumber(phoneNumber)) {
+    return res.status(400).json({ error: 'Invalid phone number format. Please use international format (e.g., +441234567890)' });
+  }
   
   // Check for spam/rate limiting
   const now = Date.now();
@@ -67,72 +83,73 @@ router.post('/start', async (req, res) => {
   
   // If this is a resend request, verify the token
   if (previousToken) {
-    // Check if token is valid and not expired
     if (!validateRequestToken(phoneNumber, previousToken)) {
       return res.status(400).json({ error: 'Invalid or expired request token' });
     }
     
-    // Check cooldown period (e.g., 30 seconds) - skip in demo mode
-    if (!config.sms.demoMode && lastRequest && (now - lastRequest.timestamp < 30000)) {
+    // Check cooldown period - skip in demo mode
+    if (!config.sms.demoMode && lastRequest && (now - lastRequest.timestamp < config.auth.otpCooldown * 1000)) {
       return res.status(429).json({ 
         error: 'Please wait before requesting another OTP',
-        retryAfter: Math.ceil((lastRequest.timestamp + 30000 - now) / 1000)
+        retryAfter: Math.ceil((lastRequest.timestamp + (config.auth.otpCooldown * 1000) - now) / 1000)
       });
     }
   }
   
-  // Generate OTP and new request token
-  const otp = config.sms.demoMode ? config.sms.demoOtp : generateOTP();
-  const requestToken = generateSecureToken(); // Generate a secure random token
-  const expiresAt = now + (config.auth.otpExpiresIn * 1000);
-  
-  // Store OTP with expiration and request token
-  otpStore.set(phoneNumber, { otp, expiresAt, requestToken });
-  
-  // Log this request for rate limiting
-  otpRequestLog.set(phoneNumber, { 
-    timestamp: now,
-    count: (lastRequest ? lastRequest.count + 1 : 1)
-  });
-  
-  // Send OTP via SMS
-  const smsResult = await sendOTP(phoneNumber, otp);
-  
-  // Set the request token in the response header
-  res.set('X-OTP-Request-Token', requestToken);
-  
-  if (!phoneNumber) {
-    return res.status(400).json({ error: 'Phone number is required' });
-  }
-
   try {
+    // Generate OTP and new request token
+    const otp = config.sms.demoMode ? config.sms.demoOtp : generateOTP(config.auth.otpLength);
+    const requestToken = generateSecureToken();
+    const expiresAt = now + (config.auth.otpExpiresIn * 1000);
+    
+    // Store OTP with expiration and request token
+    otpStore.set(phoneNumber, { otp, expiresAt, requestToken, attempts: 0 });
+    
+    // Log this request for rate limiting
+    otpRequestLog.set(phoneNumber, { 
+      timestamp: now,
+      count: (lastRequest ? lastRequest.count + 1 : 1)
+    });
+    
+    // Send OTP via SMS
+    const smsResult = await sendOTP(phoneNumber, otp);
+    
+    // Set the request token in the response header
+    res.set('X-OTP-Request-Token', requestToken);
+    
     let user = await User.findOne({ phoneNumber });
     
-    if (user) {
-      // Already registered => proceed with OTP
-      console.log(`OTP for ${phoneNumber}: ${otp}`);
-      
-      return res.json({ 
-        message: 'User found. OTP sent.', 
-        needsRegistration: false,
-        smsStatus: smsResult.success ? 'sent' : 'failed',
-        // Only include OTP in demo mode
-        ...(config.sms.demoMode && { otp })
-      });
-    } else {
-      // Not registered => respond that they need to sign up
-      console.log(`OTP for new user ${phoneNumber}: ${otp}`);
-      
-      return res.json({ 
-        message: 'Phone not registered, register flow', 
-        needsRegistration: true,
-        smsStatus: smsResult.success ? 'sent' : 'failed',
-        // Only include OTP in demo mode
-        ...(config.sms.demoMode && { otp })
-      });
+    // Prepare response
+    const response = {
+      message: user ? 'User found. OTP sent.' : 'Phone not registered, register flow',
+      needsRegistration: !user,
+      smsStatus: smsResult.success ? 'sent' : 'failed'
+    };
+
+    // Add error info if SMS failed
+    if (!smsResult.success) {
+      response.smsError = smsResult.error;
+      response.retryable = smsResult.retryable;
     }
+
+    // Only include OTP in demo mode
+    if (config.sms.demoMode) {
+      response.otp = otp;
+      response.demoMode = true;
+    }
+
+    // Log OTP in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`OTP for ${phoneNumber}: ${otp}`);
+    }
+
+    return res.json(response);
   } catch (err) {
-    return res.status(500).json({ error: 'Server error: ' + err.message });
+    console.error('Error in /start:', err);
+    return res.status(500).json({ 
+      error: 'Failed to process request',
+      retryable: true
+    });
   }
 });
 
@@ -214,8 +231,16 @@ router.post('/register', async (req, res) => {
  * STEP 3: Verify OTP and login
  */
 router.post('/verify', async (req, res) => {
-  const { phoneNumber, otp, requestToken: bodyRequestToken } = req.body;
-  const requestToken = req.headers['x-otp-request-token'] || bodyRequestToken;
+  const { phoneNumber, otp } = req.body;
+  const requestToken = req.headers['x-otp-request-token'];
+  
+  if (!phoneNumber || !otp) {
+    return res.status(400).json({ error: 'Phone number and OTP are required' });
+  }
+  
+  if (!isValidPhoneNumber(phoneNumber)) {
+    return res.status(400).json({ error: 'Invalid phone number format' });
+  }
   
   // Get stored OTP data
   const otpData = otpStore.get(phoneNumber);
@@ -224,45 +249,60 @@ router.post('/verify', async (req, res) => {
     return res.status(400).json({ error: 'No OTP request found for this number' });
   }
   
+  // Check attempts
+  if (otpData.attempts >= config.auth.maxOtpAttempts) {
+    otpStore.delete(phoneNumber); // Clear the OTP after max attempts
+    return res.status(400).json({ 
+      error: 'Maximum verification attempts exceeded. Please request a new OTP.',
+      maxAttemptsReached: true
+    });
+  }
+  
+  // Increment attempts
+  otpData.attempts += 1;
+  otpStore.set(phoneNumber, otpData);
+  
   // Verify both the OTP and the request token
   if (otpData.otp !== otp || otpData.requestToken !== requestToken) {
-    return res.status(400).json({ error: 'Invalid OTP or request token' });
+    const remainingAttempts = config.auth.maxOtpAttempts - otpData.attempts;
+    return res.status(400).json({ 
+      error: 'Invalid OTP',
+      remainingAttempts
+    });
   }
   
   if (otpData.expiresAt < Date.now()) {
+    otpStore.delete(phoneNumber);
     return res.status(400).json({ error: 'OTP has expired' });
   }
   
   try {
-    // Find the user
+    // Find or create user
     let user = await User.findOne({ phoneNumber });
     if (!user) {
-      // Auto-register on the fly for test convenience
+      // Generate unique anonId
       let anonId;
       let isAnonIdUnique = false;
-
       while (!isAnonIdUnique) {
         anonId = generateTelegramStyleAnonId();
-        // Ensure uniqueness
-        // eslint-disable-next-line no-await-in-loop
         const existing = await User.findOne({ anonId });
         if (!existing) isAnonIdUnique = true;
       }
-
+      
       user = new User({ phoneNumber, anonId });
       await user.save();
     }
-
+    
     // Clear the OTP
     otpStore.delete(phoneNumber);
-
+    
     // Generate JWT token
     const token = generateJWT(
       { userId: user._id, phoneNumber: user.phoneNumber, anonId: user.anonId },
       config.auth.jwtSecret,
       { expiresIn: config.auth.jwtExpiresIn }
     );
-
+    
     return res.json({
       message: 'Login successful',
       user: {
@@ -275,7 +315,8 @@ router.post('/verify', async (req, res) => {
       token,
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Server error: ' + err.message });
+    console.error('Error in /verify:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 

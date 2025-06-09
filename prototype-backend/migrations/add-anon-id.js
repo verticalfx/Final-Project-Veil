@@ -21,7 +21,7 @@ function generateTelegramStyleAnonId() {
 async function migrateUsers() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(config.db.uri, config.db.options);
+    await mongoose.connect(config.mongodb.uri, config.mongodb.options);
     console.log('Connected to MongoDB');
 
     // Get the User model directly from mongoose to avoid validation issues

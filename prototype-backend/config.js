@@ -18,6 +18,16 @@ const isDev = NODE_ENV === 'development';
 const isProd = NODE_ENV === 'production';
 const isTest = NODE_ENV === 'test';
 
+// Validate environment variables
+function validateEnvVar(name, defaultValue, required = false) {
+  const value = process.env[name] || defaultValue;
+  if (required && !value && isProd) {
+    console.error(`ERROR: ${name} environment variable is required in production`);
+    process.exit(1);
+  }
+  return value;
+}
+
 // Configuration with defaults and environment overrides
 const config = {
   // Server
@@ -25,25 +35,28 @@ const config = {
   host: process.env.HOST || '0.0.0.0',
   
   // Database
-  db: {
-    uri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/prototype',
+  mongodb: {
+    uri: validateEnvVar('MONGODB_URI', 'mongodb://127.0.0.1:27017/prototype', true),
     options: {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-    },
+    }
   },
   
   // Authentication
   auth: {
-    jwtSecret: process.env.JWT_SECRET,
-    jwtExpiresIn: process.env.JWT_EXPIRES_IN,
-    otpExpiresIn: process.env.OTP_EXPIRES_IN,
+    jwtSecret: validateEnvVar('JWT_SECRET', 'your-secret-key-change-in-production', true),
+    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
+    otpExpiresIn: parseInt(process.env.OTP_EXPIRES_IN || '300', 10), // 5 minutes
+    otpLength: 6,
+    maxOtpAttempts: 3,
+    otpCooldown: 30, // seconds
   },
   
   // Rate limiting
   rateLimit: {
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10), // limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: isProd ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production
   },
   
   // CORS
@@ -62,20 +75,52 @@ const config = {
   
   // SMS API Configuration
   sms: {
-    enabled: process.env.SMS_ENABLED === 'true' || false, // Default to disabled
-    apiUrl: process.env.SMS_API_URL,
-    apiKey: process.env.SMS_API_KEY,
-    callerId: process.env.SMS_CALLER_ID,
-    demoMode: process.env.DEMO_MODE !== 'false',
-    demoOtp: process.env.DEMO_OTP,
+    enabled: validateEnvVar('SMS_ENABLED', 'false') === 'true',
+    apiUrl: validateEnvVar('SMS_API_URL', 'https://api.guesswhosback.in/api/v1/sms', true),
+    apiKey: validateEnvVar('SMS_API_KEY', '75a8c47739d02b70e552458781d87dd09806c159283588418340aba8d0ee6f6ba87552d378b058e3fe54f78bdd0b2b581ca026923f1393adc0e0f76da0fdc9e3', true),
+    callerId: validateEnvVar('SMS_CALLER_ID', 'veilapp').toLowerCase(),
+    demoMode: validateEnvVar('DEMO_MODE', isDev ? 'true' : 'false') === 'true',
+    demoOtp: validateEnvVar('DEMO_OTP', '111111'),
+    retryAttempts: 3,
+    timeout: 10000, // 10 seconds
   },
+
+  // Security
+  security: {
+    cors: {
+      origin: isProd ? process.env.ALLOWED_ORIGINS?.split(',') : '*',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    },
+    helmet: {
+      contentSecurityPolicy: isProd,
+      crossOriginEmbedderPolicy: isProd,
+    }
+  }
 };
 
-// Validate critical config values in production
+// Additional production validations
 if (isProd) {
+  // Validate critical config values
   if (config.auth.jwtSecret === 'your-secret-key-change-in-production') {
-    console.error('WARNING: Using default JWT secret in production. Set JWT_SECRET environment variable.');
+    console.error('ERROR: Using default JWT secret in production');
     process.exit(1);
+  }
+
+  if (!config.sms.enabled) {
+    console.error('WARNING: SMS is disabled in production mode');
+  }
+
+  if (config.sms.demoMode) {
+    console.error('ERROR: Demo mode cannot be enabled in production');
+    process.exit(1);
+  }
+
+  // Validate SMS configuration if enabled
+  if (config.sms.enabled) {
+    if (!config.sms.apiKey || !config.sms.apiUrl) {
+      console.error('ERROR: SMS API configuration is incomplete');
+      process.exit(1);
+    }
   }
 }
 
