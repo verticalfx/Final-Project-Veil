@@ -36,7 +36,7 @@ const config = {
   
   // Database
   mongodb: {
-    uri: validateEnvVar('MONGODB_URI', 'mongodb://127.0.0.1:27017/prototype', true),
+    uri: validateEnvVar('MONGODB_URI', 'mongodb://127.0.0.1:27069/prototype', true),
     options: {
       useNewUrlParser: true,
       useUnifiedTopology: true,
